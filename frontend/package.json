@@ -1,5 +1,5 @@
 {
-  "name": "langraph-supervisor-frontend",
+  "name": "misteriosa-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -29,4 +29,3 @@
     "react-dom": "^18.3.1"
   }
 }
-
