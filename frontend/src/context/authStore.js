@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_URL = ''
 
 export const useAuthStore = create((set, get) => {
   // Safely get token from localStorage
@@ -43,7 +43,7 @@ export const useAuthStore = create((set, get) => {
 
         // Get user info
         const userResponse = await axios.get(`${API_URL}/api/auth/users/me`)
-        
+
         set({
           isAuthenticated: true,
           token: access_token,

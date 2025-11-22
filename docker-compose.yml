@@ -29,6 +29,8 @@ services:
     volumes:
       - ./backend:/app
       - ./backend/mcp_config.json:/app/mcp_config.json
+      - /home/pedro/Desktop/Business:/home/pedro/Desktop/Business
+      - /home/pedro/Desktop/Study:/home/pedro/Desktop/Study
     depends_on:
       postgres:
         condition: service_healthy
@@ -41,7 +43,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      VITE_API_URL: http://localhost:8000
+      VITE_API_URL: http://backend:8000
     volumes:
       - ./frontend:/app
       - /app/node_modules

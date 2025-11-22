@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '../context/authStore'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_URL = ''
 
 function Chat() {
   const [messages, setMessages] = useState([])
@@ -56,7 +56,8 @@ function Chat() {
 
   const connectWebSocket = (convId) => {
     const token = localStorage.getItem('access_token')
-    const wsUrl = API_URL.replace('http', 'ws')
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = `${protocol}//${window.location.host}`
     const ws = new WebSocket(`${wsUrl}/api/chat/ws/${convId}?token=${token}`)
 
     ws.onopen = () => {
@@ -143,7 +144,7 @@ function Chat() {
 
     // Use WebSocket if available, otherwise fallback to REST
     const convId = conversationId || 'new'
-    
+
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       connectWebSocket(convId)
       // Wait a bit for connection
@@ -215,16 +216,14 @@ function Chat() {
           {messages.map((msg, idx) => (
             <div
               key={idx}
-              className={`flex ${
-                msg.role === 'user' ? 'justify-end' : 'justify-start'
-              }`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'
+                }`}
             >
               <div
-                className={`max-w-3xl rounded-lg px-4 py-2 ${
-                  msg.role === 'user'
+                className={`max-w-3xl rounded-lg px-4 py-2 ${msg.role === 'user'
                     ? 'bg-indigo-600 text-white'
                     : 'bg-white text-gray-900 shadow'
-                }`}
+                  }`}
               >
                 {msg.toolName && (
                   <div className="text-xs opacity-75 mb-1">
