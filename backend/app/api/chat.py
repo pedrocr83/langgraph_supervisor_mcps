@@ -10,7 +10,14 @@ from app.services.agents.supervisor import get_supervisor_service
 from app.db.session import get_db, AsyncSessionLocal
 from app.db.models import Conversation, Message
 from sqlalchemy import select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import logging
+import re
+
+# Configure logger
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -118,6 +125,9 @@ async def websocket_chat(
                     session.add(user_msg)
                     await session.commit()
                     
+                    # Log user message
+                    logger.info(f"User ({conv_id}): {user_message}")
+                    
                     # Stream response from supervisor
                     config = {"configurable": {"thread_id": str(conv_id)}}
                     inputs = {"messages": [{"role": "user", "content": user_message}]}
@@ -165,10 +175,53 @@ async def websocket_chat(
                     
                     # Save assistant message
                     if full_response:
+                        # Extract emotion for logging
+                        # Try standard format first: <emotion>type</emotion>
+                        emotion_match = re.search(r'<emotion>(.*?)</emotion>', full_response)
+                        if emotion_match:
+                            emotion = emotion_match.group(1)
+                            clean_content = re.sub(r'<emotion>.*?</emotion>', '', full_response)
+                        else:
+                            # Try fallback format: <type>...</type> or <type>...
+                            fallback_match = re.search(r'<(happy|confused|sad|angry)>', full_response)
+                            if fallback_match:
+                                emotion = fallback_match.group(1)
+                                # Remove the opening tag
+                                clean_content = re.sub(r'<(happy|confused|sad|angry)>', '', full_response)
+                                # Remove potential closing tag
+                                clean_content = re.sub(r'</(happy|confused|sad|angry)>', '', clean_content)
+                            else:
+                                emotion = "unknown"
+                                clean_content = full_response
+                        
+                        logger.info(f"AI ({conv_id}) [Emotion: {emotion}]: {clean_content}")
+                        
                         assistant_msg = Message(
                             conversation_id=conv_id,
                             role="assistant",
                             content=full_response
+                        )
+                        session.add(assistant_msg)
+                        await session.commit()
+                    else:
+                        # Handle empty response (likely blocked)
+                        # Default to confused, but if we suspect a block (which usually results in empty response here), use angry as requested
+                        # Since we can't easily access the block reason from the stream iterator without more complex error handling,
+                        # and the user requested "angry" for prohibited content which causes empty responses, we will use a generic safety message.
+                        
+                        fallback_message = "<emotion>angry</emotion>I apologize, but I cannot fulfill this request as it violates my safety policies or contains prohibited content."
+                        
+                        logger.warning(f"AI ({conv_id}) [Blocked/Empty]: Sending fallback message")
+                        
+                        await websocket.send_json({
+                            "type": "content",
+                            "content": fallback_message
+                        })
+                        
+                        assistant_msg = Message(
+                            conversation_id=conv_id,
+                            role="assistant",
+                            content=fallback_message
                         )
                         session.add(assistant_msg)
                         await session.commit()
@@ -226,6 +279,9 @@ async def chat(
     db.add(user_msg)
     await db.commit()
     
+    # Log user message
+    logger.info(f"User ({conv_id}): {request.message}")
+    
     # Get response from supervisor
     config = {"configurable": {"thread_id": str(conv_id)}}
     inputs = {"messages": [{"role": "user", "content": request.message}]}
@@ -246,6 +302,31 @@ async def chat(
                 final_message = str(msg.content)
     
     # Save assistant message
+    if not final_message:
+        final_message = "<emotion>angry</emotion>I apologize, but I cannot fulfill this request as it violates my safety policies or contains prohibited content."
+        logger.warning(f"AI ({conv_id}) [Blocked/Empty]: Sending fallback message")
+    
+    # Extract emotion for logging
+    # Try standard format first: <emotion>type</emotion>
+    emotion_match = re.search(r'<emotion>(.*?)</emotion>', final_message)
+    if emotion_match:
+        emotion = emotion_match.group(1)
+        clean_content = re.sub(r'<emotion>.*?</emotion>', '', final_message)
+    else:
+        # Try fallback format: <type>...</type> or <type>...
+        fallback_match = re.search(r'<(happy|confused|sad|angry)>', final_message)
+        if fallback_match:
+            emotion = fallback_match.group(1)
+            # Remove the opening tag
+            clean_content = re.sub(r'<(happy|confused|sad|angry)>', '', final_message)
+            # Remove potential closing tag
+            clean_content = re.sub(r'</(happy|confused|sad|angry)>', '', clean_content)
+        else:
+            emotion = "unknown"
+            clean_content = final_message
+    
+    logger.info(f"AI ({conv_id}) [Emotion: {emotion}]: {clean_content}")
+
     assistant_msg = Message(
         conversation_id=conv_id,
         role="assistant",

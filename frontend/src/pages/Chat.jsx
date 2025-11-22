@@ -2,6 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '../context/authStore'
 import Sidebar from '../components/Sidebar'
 import axios from 'axios'
+import maleIcon from '../icons/male_small.png'
+import robotHappyIcon from '../icons/robot_happy_small.png'
+import robotConfusedIcon from '../icons/robot_confusion_small.png'
+import robotSadIcon from '../icons/robot_sad_small.png'
+import robotAngryIcon from '../icons/robot_angry_small.png'
 
 const API_URL = ''
 
@@ -18,6 +23,37 @@ function Chat() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const parseMessage = (content) => {
+    // Try standard format: <emotion>type</emotion>
+    const emotionMatch = content.match(/<emotion>(.*?)<\/emotion>/)
+    if (emotionMatch) {
+      return {
+        emotion: emotionMatch[1],
+        cleanContent: content.replace(/<emotion>.*?<\/emotion>/, '')
+      }
+    }
+
+    // Try fallback format: <type>...</type> or just <type>
+    const fallbackMatch = content.match(/<(happy|confused|sad|angry)>/)
+    if (fallbackMatch) {
+      const emotion = fallbackMatch[1]
+      let cleanContent = content.replace(new RegExp(`<${emotion}>`), '')
+      cleanContent = cleanContent.replace(new RegExp(`<\/${emotion}>`), '')
+      return { emotion, cleanContent }
+    }
+
+    return { emotion: 'happy', cleanContent: content }
+  }
+
+  const getRobotIcon = (emotion) => {
+    switch (emotion) {
+      case 'confused': return robotConfusedIcon
+      case 'sad': return robotSadIcon
+      case 'angry': return robotAngryIcon
+      default: return robotHappyIcon
+    }
   }
 
   useEffect(() => {
@@ -278,7 +314,7 @@ function Chat() {
           padding: '24px',
           backgroundColor: 'var(--bg-chat)',
         }}>
-          <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ maxWidth: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px', padding: '0 40px' }}>
             {messages.length === 0 && (
               <div style={{
                 textAlign: 'center',
@@ -291,61 +327,77 @@ function Chat() {
                 <p style={{ fontSize: '14px', marginTop: '8px' }}>Ask me anything!</p>
               </div>
             )}
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: 'flex',
-                  gap: '16px',
-                  padding: '16px',
-                  borderRadius: '12px',
-                  backgroundColor: msg.role === 'user' ? 'var(--bg-user-msg)' : 'var(--bg-assistant-msg)',
-                }}
-              >
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '4px',
-                  backgroundColor: msg.role === 'user' ? 'var(--accent-color)' : 'var(--bg-tertiary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  fontSize: '18px',
-                }}>
-                  {msg.role === 'user' ? '👤' : '🤖'}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  {msg.toolName && (
-                    <div style={{
-                      fontSize: '12px',
-                      color: 'var(--text-muted)',
-                      marginBottom: '8px',
-                    }}>
-                      Tool: {msg.toolName}
-                    </div>
-                  )}
+            {messages.map((msg, idx) => {
+              const { emotion, cleanContent } = msg.role === 'assistant'
+                ? parseMessage(msg.content)
+                : { emotion: 'happy', cleanContent: msg.content }
+
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    gap: '12px',
+                    padding: '8px 0',
+                    flexDirection: msg.role === 'user' ? 'row' : 'row-reverse',
+                    justifyContent: 'flex-start',
+                    alignItems: 'flex-end',
+                  }}
+                >
                   <div style={{
-                    color: 'var(--text-primary)',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    lineHeight: '1.6',
+                    width: '96px',
+                    height: '96px',
+                    borderRadius: '12px',
+                    backgroundColor: 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginBottom: '4px', // Align with bottom of bubble
                   }}>
-                    {msg.content}
-                    {!msg.complete && msg.role === 'assistant' && (
-                      <span style={{
-                        display: 'inline-block',
-                        width: '8px',
-                        height: '16px',
-                        backgroundColor: 'var(--text-secondary)',
-                        marginLeft: '4px',
-                        animation: 'blink 1s infinite',
-                      }} />
+                    <img
+                      src={msg.role === 'user' ? maleIcon : getRobotIcon(emotion)}
+                      alt={msg.role}
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    />
+                  </div>
+                  <div style={{
+                    flex: 1,
+                    minWidth: 0,
+                    maxWidth: '70%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: msg.role === 'user' ? 'flex-start' : 'flex-end',
+                  }}>
+                    {msg.toolName && (
+                      <div style={{
+                        fontSize: '12px',
+                        color: 'var(--text-muted)',
+                        marginBottom: '4px',
+                        alignSelf: msg.role === 'user' ? 'flex-start' : 'flex-end',
+                      }}>
+                        Tool: {msg.toolName}
+                      </div>
                     )}
+                    <div style={{
+                      padding: '20px 24px',
+                      borderRadius: '16px',
+                      borderBottomLeftRadius: msg.role === 'user' ? '4px' : '16px',
+                      borderBottomRightRadius: msg.role === 'assistant' ? '4px' : '16px',
+                      backgroundColor: msg.role === 'user' ? 'var(--bg-user-msg)' : 'var(--bg-assistant-msg)',
+                      color: 'var(--text-primary)',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      lineHeight: '1.6',
+                      fontSize: '16px',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    }}>
+                      {cleanContent}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
             {toolStatus && (
               <div style={{
                 padding: '12px 16px',
@@ -383,7 +435,7 @@ function Chat() {
           backgroundColor: 'var(--bg-secondary)',
           borderTop: '1px solid var(--border-color)',
         }}>
-          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <div style={{ maxWidth: '100%', margin: '0 auto', padding: '0 40px' }}>
             <form onSubmit={handleSend} style={{ display: 'flex', gap: '12px' }}>
               <input
                 type="text"
