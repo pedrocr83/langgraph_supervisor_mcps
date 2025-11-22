@@ -8,6 +8,9 @@ from app.services.agents.mcp_tools import load_mcp_servers_from_config
 from app.core.config import settings
 from typing import List, Optional
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def categorize_tools(tools: List[BaseTool]) -> dict:
@@ -340,8 +343,8 @@ class SupervisorService:
         try:
             mcp_tools, self.mcp_client = await load_mcp_servers_from_config(settings.MCP_CONFIG_PATH)
         except Exception as e:
-            print(f"Warning: Failed to load MCP servers: {e}")
-            print("Continuing without MCP tools...")
+            logger.warning(f"Failed to load MCP servers: {e}")
+            logger.info("Continuing without MCP tools...")
             mcp_tools = []
         
         # Categorize tools

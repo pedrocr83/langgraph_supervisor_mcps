@@ -28,7 +28,7 @@ services:
       BRAVE_API_KEY: ${BRAVE_API_KEY}
     volumes:
       - ./backend:/app
-      - ./mcp_config.json:/app/mcp_config.json
+      - ./backend/mcp_config.json:/app/mcp_config.json
     depends_on:
       postgres:
         condition: service_healthy

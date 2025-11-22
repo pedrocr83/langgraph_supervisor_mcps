@@ -73,7 +73,7 @@ async def load_mcp_servers_from_config(config_path: str):
             # Check if any of the filesystem paths exist
             paths_exist = any(os.path.exists(path) for path in server_config.get("args", []) if isinstance(path, str) and not path.startswith("-"))
             if not paths_exist:
-                print(f"Skipping filesystem MCP server: paths don't exist in container")
+                logging.warning(f"Skipping filesystem MCP server: paths don't exist in container")
                 continue
         
         # Determine transport type based on config
