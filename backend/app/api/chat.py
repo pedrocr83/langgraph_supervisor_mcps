@@ -133,10 +133,21 @@ async def websocket_chat(
                     inputs = {"messages": [{"role": "user", "content": user_message}]}
                     
                     full_response = ""
+                    seen_message_ids = set()  # Track which messages we've already processed
+                    
                     for step in supervisor_service.supervisor_agent.stream(inputs, config):
                         for key, update in step.items():
                             if "messages" in update:
                                 for msg in update["messages"]:
+                                    # Get message ID to avoid duplicates
+                                    msg_id = getattr(msg, 'id', None) or id(msg)
+                                    
+                                    # Skip if we've already processed this message
+                                    if msg_id in seen_message_ids:
+                                        continue
+                                    
+                                    seen_message_ids.add(msg_id)
+                                    
                                     if hasattr(msg, 'content') and msg.content:
                                         # Handle tool messages
                                         if msg.type == 'tool':
@@ -288,18 +299,19 @@ async def chat(
     
     result = supervisor_service.supervisor_agent.invoke(inputs, config)
     
-    # Extract final message
+    # Extract final message (only the last one)
     final_message = ""
-    for msg in result.get("messages", []):
-        if hasattr(msg, 'type') and msg.type == 'ai' and hasattr(msg, 'content'):
-            if isinstance(msg.content, list):
-                for block in msg.content:
+    if "messages" in result and result["messages"]:
+        last_msg = result["messages"][-1]
+        if hasattr(last_msg, 'content'):
+            if isinstance(last_msg.content, list):
+                for block in last_msg.content:
                     if isinstance(block, dict) and "text" in block:
                         final_message += block["text"]
                     elif isinstance(block, str):
                         final_message += block
             else:
-                final_message = str(msg.content)
+                final_message = str(last_msg.content)
     
     # Save assistant message
     if not final_message:

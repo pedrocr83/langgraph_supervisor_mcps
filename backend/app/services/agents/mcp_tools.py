@@ -32,16 +32,41 @@ def make_sync_tool(async_tool):
     else:
         raise ValueError(f"Could not find async function in tool: {async_tool.name}")
     
-    # Create a sync wrapper
+    # Create a sync wrapper with better event loop handling
     def sync_wrapper(**kwargs):
-        """Synchronous wrapper for async tool."""
+        """Synchronous wrapper for async tool with nested event loop support."""
+        # Fix language parameter for Brave search
+        if async_tool.name == "brave_web_search" and "search_lang" in kwargs:
+            lang = kwargs["search_lang"]
+            # Map generic language codes to Brave-specific codes
+            lang_mapping = {
+                "pt": "pt-br",  # Default Portuguese to Brazilian Portuguese
+                "en": "en",
+                "zh": "zh-hans",  # Default Chinese to Simplified
+            }
+            if lang in lang_mapping:
+                kwargs["search_lang"] = lang_mapping[lang]
+        
         # Check if we're already in an event loop
         try:
             loop = asyncio.get_running_loop()
-            # We're in an async context, create a new thread
+            # We're in an async context running within an event loop
+            # We need to run the coroutine in the existing loop using run_coroutine_threadsafe
+            # but this requires a new thread with its own event loop
             import concurrent.futures
+            import threading
+            
+            def run_in_new_loop():
+                """Run the async function in a new event loop in a separate thread."""
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                try:
+                    return new_loop.run_until_complete(async_func(**kwargs))
+                finally:
+                    new_loop.close()
+            
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, async_func(**kwargs))
+                future = executor.submit(run_in_new_loop)
                 return future.result()
         except RuntimeError:
             # No event loop running, safe to use asyncio.run

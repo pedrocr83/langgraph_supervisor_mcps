@@ -26,12 +26,14 @@ function Chat() {
   }
 
   const parseMessage = (content) => {
+    if (!content) return { emotion: 'happy', cleanContent: '' }
+    
     // Try standard format: <emotion>type</emotion>
     const emotionMatch = content.match(/<emotion>(.*?)<\/emotion>/)
     if (emotionMatch) {
       return {
         emotion: emotionMatch[1],
-        cleanContent: content.replace(/<emotion>.*?<\/emotion>/, '')
+        cleanContent: content.replace(/<emotion>.*?<\/emotion>/g, '').trim()
       }
     }
 
@@ -39,9 +41,9 @@ function Chat() {
     const fallbackMatch = content.match(/<(happy|confused|sad|angry)>/)
     if (fallbackMatch) {
       const emotion = fallbackMatch[1]
-      let cleanContent = content.replace(new RegExp(`<${emotion}>`), '')
-      cleanContent = cleanContent.replace(new RegExp(`<\/${emotion}>`), '')
-      return { emotion, cleanContent }
+      let cleanContent = content.replace(new RegExp(`<${emotion}>`, 'g'), '')
+      cleanContent = cleanContent.replace(new RegExp(`<\/${emotion}>`, 'g'), '')
+      return { emotion, cleanContent: cleanContent.trim() }
     }
 
     return { emotion: 'happy', cleanContent: content }
@@ -153,7 +155,15 @@ function Chat() {
         setConversationId(data.conversation_id)
         // Reload conversations to include the new one
         loadConversations()
+      } else if (data.type === 'tool_call') {
+        // Agent is calling a sub-agent - show "communicating" status
+        setToolStatus({ name: data.name, calling: true, isCommunicating: true })
+      } else if (data.type === 'tool') {
+        // Tool result received - keep showing it briefly
+        setToolStatus({ name: data.name, content: data.content, isCommunicating: false })
       } else if (data.type === 'content') {
+        // Clear tool status when we start receiving content
+        setToolStatus(null)
         setMessages((prev) => {
           const lastMsg = prev[prev.length - 1]
           if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.complete) {
@@ -175,10 +185,6 @@ function Chat() {
             ]
           }
         })
-      } else if (data.type === 'tool') {
-        setToolStatus({ name: data.name, content: data.content })
-      } else if (data.type === 'tool_call') {
-        setToolStatus({ name: data.name, calling: true })
       } else if (data.type === 'done') {
         setMessages((prev) => {
           const lastMsg = prev[prev.length - 1]
@@ -231,29 +237,34 @@ function Chat() {
     // Use WebSocket if available, otherwise fallback to REST
     const convId = conversationId || 'new'
 
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      connectWebSocket(convId)
-      // Wait a bit for connection
-      setTimeout(() => {
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          wsRef.current.send(
-            JSON.stringify({
-              type: 'message',
-              message: userMessage,
-            })
-          )
-        } else {
-          // Fallback to REST API
-          sendViaRest(userMessage, convId)
+    // Helper to wait for WebSocket connection
+    const waitForConnection = async () => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+            connectWebSocket(convId)
         }
-      }, 500)
-    } else {
+        
+        // Poll for connection up to 3 seconds (10 attempts * 300ms)
+        for (let i = 0; i < 10; i++) {
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                return true
+            }
+            await new Promise(resolve => setTimeout(resolve, 300))
+        }
+        return false
+    }
+
+    const isConnected = await waitForConnection()
+
+    if (isConnected) {
       wsRef.current.send(
         JSON.stringify({
           type: 'message',
           message: userMessage,
         })
       )
+    } else {
+      console.warn('WebSocket connection failed, falling back to REST')
+      sendViaRest(userMessage, convId)
     }
   }
 
@@ -400,29 +411,101 @@ function Chat() {
             })}
             {toolStatus && (
               <div style={{
-                padding: '12px 16px',
-                borderRadius: '8px',
-                backgroundColor: 'var(--bg-tertiary)',
-                border: '1px solid var(--border-color)',
-                fontSize: '14px',
-                color: 'var(--text-secondary)',
+                display: 'flex',
+                gap: '12px',
+                padding: '8px 0',
+                flexDirection: 'row-reverse',
+                justifyContent: 'flex-start',
+                alignItems: 'flex-end',
               }}>
-                {toolStatus.calling ? (
-                  <>🔧 Calling tool: {toolStatus.name}...</>
-                ) : (
-                  <>
-                    <div style={{ fontWeight: '500', marginBottom: '4px' }}>🔧 Tool: {toolStatus.name}</div>
-                    <pre style={{
+                <div style={{
+                  width: '96px',
+                  height: '96px',
+                  borderRadius: '12px',
+                  backgroundColor: 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  marginBottom: '4px',
+                  position: 'relative',
+                }}>
+                  <img
+                    src={robotHappyIcon}
+                    alt="AI thinking"
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      objectFit: 'contain',
+                      animation: toolStatus.calling ? 'pulse 1.5s ease-in-out infinite' : 'none'
+                    }}
+                  />
+                  {toolStatus.isCommunicating && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '0',
+                      right: '0',
+                      width: '24px',
+                      height: '24px',
+                      backgroundColor: 'var(--accent-color)',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      animation: 'bounce 1s ease-in-out infinite',
                       fontSize: '12px',
-                      color: 'var(--text-muted)',
-                      overflow: 'auto',
-                      maxHeight: '120px',
-                      margin: 0,
                     }}>
-                      {toolStatus.content}
-                    </pre>
-                  </>
-                )}
+                      💬
+                    </div>
+                  )}
+                </div>
+                <div style={{
+                  flex: 1,
+                  minWidth: 0,
+                  maxWidth: '70%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-end',
+                }}>
+                  <div style={{
+                    padding: '20px 24px',
+                    borderRadius: '16px',
+                    borderBottomRightRadius: '4px',
+                    backgroundColor: 'var(--bg-assistant-msg)',
+                    color: 'var(--text-primary)',
+                    fontSize: '14px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  }}>
+                    {toolStatus.calling ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {toolStatus.isCommunicating ? (
+                          <>
+                            <span style={{ animation: 'blink 1.4s linear infinite' }}>●</span>
+                            <span style={{ animation: 'blink 1.4s linear infinite 0.2s' }}>●</span>
+                            <span style={{ animation: 'blink 1.4s linear infinite 0.4s' }}>●</span>
+                            <span style={{ marginLeft: '8px' }}>Communicating with {toolStatus.name}...</span>
+                          </>
+                        ) : (
+                          <>🔧 Calling tool: {toolStatus.name}...</>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ fontWeight: '500', marginBottom: '4px' }}>🔧 Tool: {toolStatus.name}</div>
+                        <pre style={{
+                          fontSize: '12px',
+                          color: 'var(--text-muted)',
+                          overflow: 'auto',
+                          maxHeight: '120px',
+                          margin: 0,
+                          whiteSpace: 'pre-wrap',
+                        }}>
+                          {toolStatus.content}
+                        </pre>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -490,7 +573,17 @@ function Chat() {
       <style>{`
         @keyframes blink {
           0%, 50% { opacity: 1; }
-          51%, 100% { opacity: 0; }
+          51%, 100% { opacity: 0.3; }
+        }
+        
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+        
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
         }
       `}</style>
     </div>
