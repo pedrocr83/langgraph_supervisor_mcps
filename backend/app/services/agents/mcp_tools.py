@@ -59,8 +59,40 @@ def make_sync_tool(async_tool):
 async def load_mcp_servers_from_config(config_path: str):
     """Load MCP servers from config file using MultiServerMCPClient."""
     import os
+    from pathlib import Path
     
-    with open(config_path, 'r') as f:
+    logger = logging.getLogger(__name__)
+    
+    # Resolve config path (handle both absolute and relative paths)
+    possible_paths = []
+    
+    # If absolute path, use as-is
+    if Path(config_path).is_absolute():
+        possible_paths.append(Path(config_path))
+    else:
+        # Try relative to current working directory
+        possible_paths.append(Path.cwd() / config_path)
+        # Try relative to /app (Docker container working directory)
+        possible_paths.append(Path("/app") / config_path)
+        # Try as-is (in case it's already relative to cwd)
+        possible_paths.append(Path(config_path))
+    
+    config_file = None
+    for path in possible_paths:
+        logger.debug(f"   Checking: {path}")
+        if path.exists():
+            config_file = path
+            break
+    
+    if config_file is None:
+        error_msg = f"MCP config file not found. Tried paths: {', '.join(str(p) for p in possible_paths)}"
+        logger.error(error_msg)
+        logger.error(f"   Current working directory: {Path.cwd()}")
+        raise FileNotFoundError(error_msg)
+    
+    logger.info(f"   ✅ Found MCP config file: {config_file}")
+    
+    with open(config_file, 'r') as f:
         config = json.load(f)
     
     # Convert config to MultiServerMCPClient format
@@ -82,8 +114,28 @@ async def load_mcp_servers_from_config(config_path: str):
         # Default to stdio if not specified
         if "url" in server_config:
             # SSE/HTTP transport
+            url = server_config["url"]
+            # If URL uses localhost and we're in Docker, try to use service name
+            # For brave-search, use the service name if available
+            if "localhost" in url and name == "brave-search":
+                # Try service name first, fallback to host.docker.internal, then original
+                import socket
+                try:
+                    # Test if we can resolve the service name
+                    socket.gethostbyname("brave-search-mcp-server")
+                    url = url.replace("localhost", "brave-search-mcp-server")
+                    logger.info(f"   Using service name for {name}: {url}")
+                except socket.gaierror:
+                    # Try host.docker.internal as fallback
+                    try:
+                        socket.gethostbyname("host.docker.internal")
+                        url = url.replace("localhost", "host.docker.internal")
+                        logger.info(f"   Using host.docker.internal for {name}: {url}")
+                    except socket.gaierror:
+                        logger.warning(f"   Using original URL for {name}: {url} (may not work in Docker)")
+            
             server_configs[name] = {
-                "url": server_config["url"],
+                "url": url,
                 "transport": "streamable_http",
             }
         else:
@@ -101,8 +153,10 @@ async def load_mcp_servers_from_config(config_path: str):
     if not server_configs:
         return [], None
     
-    # Create MultiServerMCPClient with stderr suppression
+    # Create MultiServerMCPClient with better error handling
     import sys
+    
+    logger.info(f"   Connecting to {len(server_configs)} MCP server(s): {', '.join(server_configs.keys())}")
     
     # Temporarily redirect stderr to suppress MCP server warnings
     old_stderr = sys.stderr
@@ -111,14 +165,50 @@ async def load_mcp_servers_from_config(config_path: str):
         sys.stderr = open(os.devnull, 'w')
         client = MultiServerMCPClient(server_configs)
         # Get all tools from all servers (these are async tools)
+        logger.info("   Attempting to load tools from MCP servers...")
         async_tools = await client.get_tools()
-    finally:
-        # Restore stderr
+    except FileNotFoundError as e:
+        # Restore stderr first
         sys.stderr.close()
         sys.stderr = old_stderr
+        error_msg = str(e)
+        logger.error(f"   ❌ MCP server command not found: {error_msg}")
+        logger.error(f"   This usually means:")
+        logger.error(f"      - For 'npx' commands: Node.js/npm might not be properly installed")
+        logger.error(f"      - For 'docker exec' commands: Docker containers might not be running")
+        logger.error(f"      - For HTTP endpoints: The service might not be accessible")
+        raise
+    except Exception as e:
+        # Restore stderr first
+        sys.stderr.close()
+        sys.stderr = old_stderr
+        error_msg = str(e)
+        logger.error(f"   ❌ Failed to connect to MCP servers: {error_msg}")
+        logger.error(f"   Error type: {type(e).__name__}")
+        # Log which servers we tried to connect to
+        for server_name, server_config in server_configs.items():
+            transport = server_config.get("transport", "unknown")
+            if transport == "stdio":
+                cmd = server_config.get("command", "unknown")
+                args = server_config.get("args", [])
+                logger.error(f"      - {server_name}: {cmd} {' '.join(str(a) for a in args[:3])}...")
+            elif transport == "streamable_http":
+                url = server_config.get("url", "unknown")
+                logger.error(f"      - {server_name}: HTTP endpoint {url}")
+        raise
+    finally:
+        # Restore stderr if not already restored
+        if sys.stderr != old_stderr:
+            sys.stderr.close()
+            sys.stderr = old_stderr
     
     # Convert async tools to sync tools
     sync_tools = [make_sync_tool(tool) for tool in async_tools]
+    
+    # Log summary of loaded tools
+    if sync_tools:
+        tool_names = [tool.name for tool in sync_tools]
+        logger.info(f"   ✅ Loaded {len(sync_tools)} MCP tools: {', '.join(sorted(tool_names))}")
     
     return sync_tools, client
 

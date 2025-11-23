@@ -2,7 +2,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import create_agent
 from langgraph.checkpoint.memory import InMemorySaver
 from app.services.agents.tools import search_web
-from langchain.tools import tool
+from langchain.tools import tool as langchain_tool
 from langchain_core.tools import BaseTool
 from app.services.agents.mcp_tools import load_mcp_servers_from_config
 from app.core.config import settings
@@ -364,9 +364,18 @@ class SupervisorService:
         if self._initialized:
             return
         
+        logger.info("-" * 80)
+        logger.info("SUPERVISOR INITIALIZATION")
+        logger.info("-" * 80)
+        
         # Initialize LLM
+        model_name = "gemini-2.5-pro"
+        logger.info(f"🤖 Model: {model_name}")
+        logger.info(f"   Temperature: 1.0")
+        logger.info(f"   Max Retries: 2")
+        
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-pro",
+            model=model_name,
             temperature=1.0,
             max_retries=2,
             google_api_key=settings.GOOGLE_API_KEY,
@@ -375,23 +384,52 @@ class SupervisorService:
         # Load MCP tools from config (gracefully handle errors)
         mcp_tools = []
         self.mcp_client = None
+        logger.info("📦 Loading MCP tools...")
+        logger.info(f"   Config path: {settings.MCP_CONFIG_PATH}")
         try:
             mcp_tools, self.mcp_client = await load_mcp_servers_from_config(settings.MCP_CONFIG_PATH)
+            logger.info(f"✅ Successfully loaded {len(mcp_tools)} MCP tools")
         except Exception as e:
-            logger.warning(f"Failed to load MCP servers: {e}")
-            logger.info("Continuing without MCP tools...")
+            logger.error(f"⚠️  Failed to load MCP servers: {e}")
+            logger.error(f"   Error type: {type(e).__name__}")
+            import traceback
+            logger.debug(f"   Traceback: {traceback.format_exc()}")
+            logger.info("   Continuing without MCP tools...")
             mcp_tools = []
         
         # Categorize tools
         categories = categorize_tools(mcp_tools)
         
+        # Log categorized tools with details
+        if mcp_tools:
+            logger.info("   📋 MCP Tools by Category:")
+            for category_name, category_tools in categories.items():
+                if category_tools:
+                    logger.info(f"      {category_name.upper().replace('_', ' ')} ({len(category_tools)} tools):")
+                    for tool in sorted(category_tools, key=lambda t: t.name):
+                        tool_desc = tool.description[:80] + "..." if len(tool.description) > 80 else tool.description
+                        logger.info(f"         • {tool.name}")
+                        logger.info(f"           Purpose: {tool_desc}")
+        
         # Create specialized agents
+        logger.info("🤖 Creating specialized agents...")
+        agents_created = []
+        agent_details = []
+        
         if categories["database"]:
             self.database_agent = create_agent(
                 self.llm,
                 tools=categories["database"],
                 system_prompt=DATABASE_AGENT_PROMPT,
             )
+            agents_created.append("Database Agent")
+            tool_names = [t.name for t in categories["database"]]
+            agent_details.append({
+                "name": "Database Agent",
+                "purpose": "Execute database queries and operations for Misterios Lda ERP system",
+                "tools": tool_names,
+                "count": len(categories["database"])
+            })
         
         # Research agent includes web_search tool
         research_tools = [search_web] + categories["research"]
@@ -401,6 +439,14 @@ class SupervisorService:
                 tools=research_tools,
                 system_prompt=RESEARCH_AGENT_PROMPT,
             )
+            agents_created.append("Research Agent")
+            tool_names = [t.name for t in research_tools]
+            agent_details.append({
+                "name": "Research Agent",
+                "purpose": "Perform web searches, gather news, articles, and current information",
+                "tools": tool_names,
+                "count": len(research_tools)
+            })
         
         if categories["file_management"]:
             self.file_management_agent = create_agent(
@@ -408,6 +454,14 @@ class SupervisorService:
                 tools=categories["file_management"],
                 system_prompt=FILE_MANAGEMENT_AGENT_PROMPT,
             )
+            agents_created.append("File Management Agent")
+            tool_names = [t.name for t in categories["file_management"]]
+            agent_details.append({
+                "name": "File Management Agent",
+                "purpose": "Read and provide information about files in SharePoint_100Misterios directory (read-only)",
+                "tools": tool_names,
+                "count": len(categories["file_management"])
+            })
         
         if categories["web_automation"]:
             self.web_automation_agent = create_agent(
@@ -415,6 +469,14 @@ class SupervisorService:
                 tools=categories["web_automation"],
                 system_prompt=WEB_AUTOMATION_AGENT_PROMPT,
             )
+            agents_created.append("Web Automation Agent")
+            tool_names = [t.name for t in categories["web_automation"]]
+            agent_details.append({
+                "name": "Web Automation Agent",
+                "purpose": "Automate web browser tasks, navigate websites, and interact with web pages",
+                "tools": tool_names,
+                "count": len(categories["web_automation"])
+            })
         
         if categories["data_processing"]:
             self.data_processing_agent = create_agent(
@@ -422,6 +484,14 @@ class SupervisorService:
                 tools=categories["data_processing"],
                 system_prompt=DATA_PROCESSING_AGENT_PROMPT,
             )
+            agents_created.append("Data Processing Agent")
+            tool_names = [t.name for t in categories["data_processing"]]
+            agent_details.append({
+                "name": "Data Processing Agent",
+                "purpose": "Process and analyze data, summarize content, and extract insights",
+                "tools": tool_names,
+                "count": len(categories["data_processing"])
+            })
         
         if categories["knowledge_graph"]:
             self.knowledge_graph_agent = create_agent(
@@ -429,6 +499,14 @@ class SupervisorService:
                 tools=categories["knowledge_graph"],
                 system_prompt=KNOWLEDGE_GRAPH_AGENT_PROMPT,
             )
+            agents_created.append("Knowledge Graph Agent")
+            tool_names = [t.name for t in categories["knowledge_graph"]]
+            agent_details.append({
+                "name": "Knowledge Graph Agent",
+                "purpose": "Manage knowledge graphs and memory systems, store and retrieve information",
+                "tools": tool_names,
+                "count": len(categories["knowledge_graph"])
+            })
         
         # Translation agent has no tools
         self.translation_agent = create_agent(
@@ -436,10 +514,29 @@ class SupervisorService:
             tools=[],
             system_prompt=TRANSLATION_AGENT_PROMPT,
         )
+        agents_created.append("Translation Agent")
+        agent_details.append({
+            "name": "Translation Agent",
+            "purpose": "Translate text from English to Portuguese from Portugal",
+            "tools": [],
+            "count": 0
+        })
+        
+        # Log agent details
+        logger.info(f"📊 Agents Created ({len(agents_created)} total):")
+        for i, agent in enumerate(agent_details, 1):
+            logger.info(f"   {i}. {agent['name']}")
+            logger.info(f"      Purpose: {agent['purpose']}")
+            if agent['count'] > 0:
+                logger.info(f"      Tools ({agent['count']}): {', '.join(agent['tools'][:5])}")
+                if len(agent['tools']) > 5:
+                    logger.info(f"                ... and {len(agent['tools']) - 5} more")
+            else:
+                logger.info(f"      Tools: None (specialized agent)")
         
         # Create tool wrappers that bind to self
         def _create_database_tool():
-            @tool
+            @langchain_tool
             def database_agent_tool(request: str) -> str:
                 """Handle database queries and operations."""
                 if self.database_agent is None:
@@ -451,7 +548,7 @@ class SupervisorService:
             return database_agent_tool
         
         def _create_research_tool():
-            @tool
+            @langchain_tool
             def research_agent_tool(request: str) -> str:
                 """Perform web research and information gathering."""
                 if self.research_agent is None:
@@ -463,7 +560,7 @@ class SupervisorService:
             return research_agent_tool
         
         def _create_file_management_tool():
-            @tool
+            @langchain_tool
             def file_management_agent_tool(request: str) -> str:
                 """Handle file and directory operations."""
                 if self.file_management_agent is None:
@@ -475,7 +572,7 @@ class SupervisorService:
             return file_management_agent_tool
         
         def _create_web_automation_tool():
-            @tool
+            @langchain_tool
             def web_automation_agent_tool(request: str) -> str:
                 """Automate web browser tasks."""
                 if self.web_automation_agent is None:
@@ -487,7 +584,7 @@ class SupervisorService:
             return web_automation_agent_tool
         
         def _create_data_processing_tool():
-            @tool
+            @langchain_tool
             def data_processing_agent_tool(request: str) -> str:
                 """Process and analyze data."""
                 if self.data_processing_agent is None:
@@ -499,7 +596,7 @@ class SupervisorService:
             return data_processing_agent_tool
         
         def _create_knowledge_graph_tool():
-            @tool
+            @langchain_tool
             def knowledge_graph_agent_tool(request: str) -> str:
                 """Manage knowledge graphs and memory."""
                 if self.knowledge_graph_agent is None:
@@ -511,7 +608,7 @@ class SupervisorService:
             return knowledge_graph_agent_tool
         
         def _create_translation_tool():
-            @tool
+            @langchain_tool
             def translation_agent_tool(request: str) -> str:
                 """Translate text from English to Portuguese from Portugal."""
                 if self.translation_agent is None:
@@ -539,14 +636,19 @@ class SupervisorService:
         all_agent_tools.append(_create_translation_tool())
         
         # Create supervisor agent with all specialized agent tools
+        logger.info("🎯 Creating supervisor agent...")
         self.supervisor_agent = create_agent(
             self.llm,
             tools=all_agent_tools,
             system_prompt=SUPERVISOR_PROMPT,
             checkpointer=self.checkpointer,
         )
+        logger.info(f"   ✅ Supervisor Agent (with {len(all_agent_tools)} agent tools)")
         
         self._initialized = True
+        logger.info("-" * 80)
+        logger.info("✅ Supervisor initialization complete!")
+        logger.info("-" * 80)
 
 
 # Global singleton instance

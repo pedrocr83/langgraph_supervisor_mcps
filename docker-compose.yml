@@ -1,14 +1,14 @@
 services:
-  postgres:
+  misterios-db:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: langraph
       POSTGRES_PASSWORD: langraph_dev_password
       POSTGRES_DB: langraph_supervisor
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-5433}:5432"  # Default to 5433 to avoid conflicts
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_v2:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U langraph -d langraph_supervisor"]
       interval: 5s
@@ -22,17 +22,20 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://langraph:langraph_dev_password@postgres:5432/langraph_supervisor
+      DATABASE_URL: postgresql+asyncpg://langraph:langraph_dev_password@misterios-db:5432/langraph_supervisor
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
       BRAVE_API_KEY: ${BRAVE_API_KEY}
     volumes:
       - ./backend:/app
       - ./backend/mcp_config.json:/app/mcp_config.json
-      - /home/pedro/Desktop/Business:/home/pedro/Desktop/Business
-      - /home/pedro/Desktop/Study:/home/pedro/Desktop/Study
+      - ./logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Allow docker exec commands
+    networks:
+      - default
+      - mcp-network  # Connect to MCP servers network
     depends_on:
-      postgres:
+      misterios-db:
         condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
@@ -50,6 +53,11 @@ services:
     depends_on:
       - backend
 
+networks:
+  mcp-network:
+    name: mcp-network
+    external: true
+
 volumes:
-  postgres_data:
+  postgres_data_v2:
 

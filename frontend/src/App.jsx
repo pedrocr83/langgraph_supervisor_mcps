@@ -1,8 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { useAuthStore } from './context/authStore'
+import { setupAxiosInterceptors } from './context/axiosConfig'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Chat from './pages/Chat'
+
+// Setup interceptors once
+setupAxiosInterceptors()
 
 function PrivateRoute({ children }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)

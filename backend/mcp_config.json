@@ -4,6 +4,7 @@
       "command": "npx",
       "args": [
         "-y",
+        "puppeteer",
         "@modelcontextprotocol/server-puppeteer"
       ]
     },
@@ -16,7 +17,7 @@
     },
     "brave-search": {
       "transport": "streamable_http",
-      "url": "http://localhost:7000/mcp"
+      "url": "http://brave-search-mcp-server:7000/mcp"
     },
     "filesystem": {
       "transport": "stdio",
