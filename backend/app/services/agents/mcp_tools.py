@@ -160,6 +160,7 @@ async def load_mcp_servers_from_config(config_path: str):
     
     # Temporarily redirect stderr to suppress MCP server warnings
     old_stderr = sys.stderr
+    
     try:
         # Redirect stderr to devnull during client initialization
         sys.stderr = open(os.devnull, 'w')
@@ -167,9 +168,13 @@ async def load_mcp_servers_from_config(config_path: str):
         # Get all tools from all servers (these are async tools)
         logger.info("   Attempting to load tools from MCP servers...")
         async_tools = await client.get_tools()
+        # Restore stderr
+        sys.stderr.close()
+        sys.stderr = old_stderr
     except FileNotFoundError as e:
         # Restore stderr first
-        sys.stderr.close()
+        if sys.stderr != old_stderr:
+            sys.stderr.close()
         sys.stderr = old_stderr
         error_msg = str(e)
         logger.error(f"   ❌ MCP server command not found: {error_msg}")
@@ -180,27 +185,31 @@ async def load_mcp_servers_from_config(config_path: str):
         raise
     except Exception as e:
         # Restore stderr first
-        sys.stderr.close()
+        if sys.stderr != old_stderr:
+            sys.stderr.close()
         sys.stderr = old_stderr
         error_msg = str(e)
         logger.error(f"   ❌ Failed to connect to MCP servers: {error_msg}")
         logger.error(f"   Error type: {type(e).__name__}")
-        # Log which servers we tried to connect to
+        
+        # Handle ExceptionGroup (common in task groups)
+        if hasattr(e, 'exceptions'):
+            logger.error(f"   Detailed sub-exceptions:")
+            for idx, sub_exc in enumerate(e.exceptions):
+                logger.error(f"      {idx+1}. {type(sub_exc).__name__}: {str(sub_exc)}")
+        
+        # Try to provide per-server diagnostics if possible
+        logger.error(f"   Attempted server configurations:")
         for server_name, server_config in server_configs.items():
-            transport = server_config.get("transport", "unknown")
+            transport = server_config.get("transport", "stdio")
             if transport == "stdio":
                 cmd = server_config.get("command", "unknown")
                 args = server_config.get("args", [])
-                logger.error(f"      - {server_name}: {cmd} {' '.join(str(a) for a in args[:3])}...")
+                logger.error(f"      - {server_name}: {cmd} {' '.join(str(a) for a in args)}")
             elif transport == "streamable_http":
                 url = server_config.get("url", "unknown")
                 logger.error(f"      - {server_name}: HTTP endpoint {url}")
         raise
-    finally:
-        # Restore stderr if not already restored
-        if sys.stderr != old_stderr:
-            sys.stderr.close()
-            sys.stderr = old_stderr
     
     # Convert async tools to sync tools
     sync_tools = [make_sync_tool(tool) for tool in async_tools]

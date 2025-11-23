@@ -17,7 +17,8 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/* \
     && ln -sf /usr/bin/nodejs /usr/local/bin/node || true \
-    && ln -sf /usr/bin/npm /usr/local/bin/npm || true
+    && ln -sf /usr/bin/npm /usr/local/bin/npm || true \
+    && npm install -g @modelcontextprotocol/server-puppeteer @modelcontextprotocol/server-sequential-thinking puppeteer
 
 # Install uv for fast package management
 RUN pip install uv
