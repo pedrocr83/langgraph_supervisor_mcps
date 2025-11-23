@@ -68,13 +68,15 @@ async def load_mcp_servers_from_config(config_path: str):
     server_configs = {}
     
     for name, server_config in mcp_servers.items():
-        # Skip filesystem server if paths don't exist (common in Docker)
+        # Skip filesystem server if absolute host paths don't exist (common in Docker)
         if name == "filesystem" and "args" in server_config:
-            # Check if any of the filesystem paths exist
-            paths_exist = any(os.path.exists(path) for path in server_config.get("args", []) if isinstance(path, str) and not path.startswith("-"))
-            if not paths_exist:
-                logging.warning(f"Skipping filesystem MCP server: paths don't exist in container")
-                continue
+            args = [arg for arg in server_config.get("args", []) if isinstance(arg, str)]
+            abs_paths = [arg for arg in args if os.path.isabs(arg)]
+            if abs_paths:
+                paths_exist = any(os.path.exists(path) for path in abs_paths)
+                if not paths_exist:
+                    logging.warning("Skipping filesystem MCP server: configured paths are missing in this runtime")
+                    continue
         
         # Determine transport type based on config
         # Default to stdio if not specified

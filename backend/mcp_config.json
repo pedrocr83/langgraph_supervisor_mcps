@@ -1,22 +1,45 @@
 {
   "mcpServers": {
-    "brave-search": {
+    "puppeteer": {
       "command": "npx",
       "args": [
         "-y",
-        "@brave/brave-search-mcp-server"
-      ],
-      "env": {
-        "BRAVE_API_KEY": "BSA0Sm5MOtdGsEu1KkB53vNSleblKSx"
-      }
+        "@modelcontextprotocol/server-puppeteer"
+      ]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "brave-search": {
+      "transport": "streamable_http",
+      "url": "http://localhost:7000/mcp"
     },
     "filesystem": {
-      "command": "npx",
+      "transport": "stdio",
+      "command": "docker",
       "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "/home/pedro/Desktop/Business",
-        "/home/pedro/Desktop/Study"
+        "exec",
+        "-i",
+        "filesystem-mcp-server",
+        "sh",
+        "-c",
+        "exec /rust-mcp-filesystem /workspace"
+      ]
+    },
+    "mcp-db-server": {
+      "transport": "stdio",
+      "command": "docker",
+      "args": [
+        "exec",
+        "-i",
+        "mcp-db-server",
+        "python",
+        "-m",
+        "mcp_server"
       ]
     }
   }
