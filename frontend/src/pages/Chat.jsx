@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuthStore } from '../context/authStore'
 import Sidebar from '../components/Sidebar'
 import axios from 'axios'
@@ -17,6 +17,7 @@ function Chat() {
   const [conversations, setConversations] = useState([])
   const [loading, setLoading] = useState(false)
   const [toolStatus, setToolStatus] = useState(null)
+  const [isThinking, setIsThinking] = useState(false)
   const messagesEndRef = useRef(null)
   const wsRef = useRef(null)
   const logout = useAuthStore((state) => state.logout)
@@ -67,21 +68,7 @@ function Chat() {
     loadConversations()
   }, [])
 
-  const loadConversations = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/api/chat/conversations`)
-      setConversations(response.data)
-      if (response.data.length > 0 && !conversationId) {
-        const firstConv = response.data[0]
-        setConversationId(firstConv.id)
-        loadMessages(firstConv.id)
-      }
-    } catch (error) {
-      console.error('Error loading conversations:', error)
-    }
-  }
-
-  const loadMessages = async (convId) => {
+  const loadMessages = useCallback(async (convId) => {
     try {
       const response = await axios.get(`${API_URL}/api/chat/conversations/${convId}/messages`)
       const formattedMessages = response.data.map((msg) => ({
@@ -93,7 +80,24 @@ function Chat() {
     } catch (error) {
       console.error('Error loading messages:', error)
     }
+  }, [])
+
+  const loadConversations = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/chat/conversations`)
+      setConversations(response.data)
+    } catch (error) {
+      console.error('Error loading conversations:', error)
+    }
   }
+
+  useEffect(() => {
+    if (!conversationId && conversations.length > 0) {
+      const firstConv = conversations[0]
+      setConversationId(firstConv.id)
+      loadMessages(firstConv.id)
+    }
+  }, [conversationId, conversations, loadMessages])
 
   const handleNewChat = () => {
     setConversationId(null)
@@ -158,12 +162,12 @@ function Chat() {
       } else if (data.type === 'tool_call') {
         // Agent is calling a sub-agent - show "communicating" status
         setToolStatus({ name: data.name, calling: true, isCommunicating: true })
+        setIsThinking(true)
       } else if (data.type === 'tool') {
         // Tool result received - keep showing it briefly
         setToolStatus({ name: data.name, content: data.content, isCommunicating: false })
       } else if (data.type === 'content') {
-        // Clear tool status when we start receiving content
-        setToolStatus(null)
+        setIsThinking(false)
         setMessages((prev) => {
           const lastMsg = prev[prev.length - 1]
           if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.complete) {
@@ -201,11 +205,13 @@ function Chat() {
         })
         setToolStatus(null)
         setLoading(false)
+        setIsThinking(false)
         // Reload conversations to update timestamps
         loadConversations()
       } else if (data.type === 'error') {
         setToolStatus(null)
         setLoading(false)
+        setIsThinking(false)
         alert(`Error: ${data.message}`)
       }
     }
@@ -230,6 +236,7 @@ function Chat() {
     const userMessage = input.trim()
     setInput('')
     setLoading(true)
+    setIsThinking(true)
 
     // Add user message to UI
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }])
@@ -281,10 +288,12 @@ function Chat() {
         { role: 'assistant', content: response.data.message, complete: true },
       ])
       setLoading(false)
+      setIsThinking(false)
       loadConversations()
     } catch (error) {
       console.error('Error sending message:', error)
       setLoading(false)
+      setIsThinking(false)
     }
   }
 
@@ -409,6 +418,63 @@ function Chat() {
                 </div>
               )
             })}
+            {/* Thinking Animation */}
+            {isThinking && !toolStatus && (
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                padding: '8px 0',
+                flexDirection: 'row-reverse',
+                justifyContent: 'flex-start',
+                alignItems: 'flex-end',
+              }}>
+                <div style={{
+                  width: '96px',
+                  height: '96px',
+                  borderRadius: '12px',
+                  backgroundColor: 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  marginBottom: '4px',
+                }}>
+                  <img
+                    src={robotHappyIcon}
+                    alt="AI thinking"
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      objectFit: 'contain',
+                      animation: 'pulse 1.5s ease-in-out infinite'
+                    }}
+                  />
+                </div>
+                <div style={{
+                  flex: 1,
+                  minWidth: 0,
+                  maxWidth: '70%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-end',
+                }}>
+                  <div style={{
+                    padding: '20px 24px',
+                    borderRadius: '16px',
+                    borderBottomRightRadius: '4px',
+                    backgroundColor: 'var(--bg-assistant-msg)',
+                    color: 'var(--text-primary)',
+                    fontSize: '16px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  }}>
+                    misteriosAI is thinking
+                    <span style={{ animation: 'blink 1.4s linear infinite' }}>.</span>
+                    <span style={{ animation: 'blink 1.4s linear infinite 0.2s' }}>.</span>
+                    <span style={{ animation: 'blink 1.4s linear infinite 0.4s' }}>.</span>
+                  </div>
+                </div>
+              </div>
+            )}
             {toolStatus && (
               <div style={{
                 display: 'flex',

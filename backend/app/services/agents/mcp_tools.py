@@ -35,6 +35,10 @@ def make_sync_tool(async_tool):
     # Create a sync wrapper with better event loop handling
     def sync_wrapper(**kwargs):
         """Synchronous wrapper for async tool with nested event loop support."""
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔧 MCP Tool Execution: {async_tool.name}")
+        logger.debug(f"   Arguments: {kwargs}")
+        
         # Fix language parameter for Brave search
         if async_tool.name == "brave_web_search" and "search_lang" in kwargs:
             lang = kwargs["search_lang"]
@@ -47,30 +51,39 @@ def make_sync_tool(async_tool):
             if lang in lang_mapping:
                 kwargs["search_lang"] = lang_mapping[lang]
         
-        # Check if we're already in an event loop
         try:
-            loop = asyncio.get_running_loop()
-            # We're in an async context running within an event loop
-            # We need to run the coroutine in the existing loop using run_coroutine_threadsafe
-            # but this requires a new thread with its own event loop
-            import concurrent.futures
-            import threading
+            result = None
+            # Check if we're already in an event loop
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an async context running within an event loop
+                # We need to run the coroutine in the existing loop using run_coroutine_threadsafe
+                # but this requires a new thread with its own event loop
+                import concurrent.futures
+                import threading
+                
+                def run_in_new_loop():
+                    """Run the async function in a new event loop in a separate thread."""
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        return new_loop.run_until_complete(async_func(**kwargs))
+                    finally:
+                        new_loop.close()
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_in_new_loop)
+                    result = future.result()
+            except RuntimeError:
+                # No event loop running, safe to use asyncio.run
+                result = asyncio.run(async_func(**kwargs))
             
-            def run_in_new_loop():
-                """Run the async function in a new event loop in a separate thread."""
-                new_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(new_loop)
-                try:
-                    return new_loop.run_until_complete(async_func(**kwargs))
-                finally:
-                    new_loop.close()
-            
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(run_in_new_loop)
-                return future.result()
-        except RuntimeError:
-            # No event loop running, safe to use asyncio.run
-            return asyncio.run(async_func(**kwargs))
+            logger.info(f"✅ MCP Tool Execution Success: {async_tool.name}")
+            return result
+        except Exception as e:
+            logger.error(f"❌ MCP Tool Execution Failed: {async_tool.name}")
+            logger.error(f"   Error: {e}")
+            raise
     
     # Create a new StructuredTool with the sync wrapper
     return StructuredTool(

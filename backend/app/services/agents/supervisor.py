@@ -544,19 +544,27 @@ class SupervisorService:
                 result = self.database_agent.invoke({
                     "messages": [{"role": "user", "content": request}]
                 })
-                return result["messages"][-1].text
+                return result["messages"][-1].content
             return database_agent_tool
         
         def _create_research_tool():
             @langchain_tool
             def research_agent_tool(request: str) -> str:
                 """Perform web research and information gathering."""
+                logger.info(f"🔎 Research Agent called with: {request}")
                 if self.research_agent is None:
                     return "Research agent not initialized."
-                result = self.research_agent.invoke({
-                    "messages": [{"role": "user", "content": request}]
-                })
-                return result["messages"][-1].text
+                try:
+                    result = self.research_agent.invoke({
+                        "messages": [{"role": "user", "content": request}]
+                    })
+                    last_msg = result["messages"][-1]
+                    response_content = last_msg.content if hasattr(last_msg, 'content') else str(last_msg)
+                    logger.info(f"🔎 Research Agent response: {response_content[:100]}...")
+                    return response_content
+                except Exception as e:
+                    logger.error(f"❌ Research Agent failed: {e}")
+                    return f"Error executing research agent: {str(e)}"
             return research_agent_tool
         
         def _create_file_management_tool():
@@ -568,7 +576,7 @@ class SupervisorService:
                 result = self.file_management_agent.invoke({
                     "messages": [{"role": "user", "content": request}]
                 })
-                return result["messages"][-1].text
+                return result["messages"][-1].content
             return file_management_agent_tool
         
         def _create_web_automation_tool():
@@ -580,7 +588,7 @@ class SupervisorService:
                 result = self.web_automation_agent.invoke({
                     "messages": [{"role": "user", "content": request}]
                 })
-                return result["messages"][-1].text
+                return result["messages"][-1].content
             return web_automation_agent_tool
         
         def _create_data_processing_tool():
@@ -592,7 +600,7 @@ class SupervisorService:
                 result = self.data_processing_agent.invoke({
                     "messages": [{"role": "user", "content": request}]
                 })
-                return result["messages"][-1].text
+                return result["messages"][-1].content
             return data_processing_agent_tool
         
         def _create_knowledge_graph_tool():
@@ -604,7 +612,7 @@ class SupervisorService:
                 result = self.knowledge_graph_agent.invoke({
                     "messages": [{"role": "user", "content": request}]
                 })
-                return result["messages"][-1].text
+                return result["messages"][-1].content
             return knowledge_graph_agent_tool
         
         def _create_translation_tool():
@@ -616,7 +624,7 @@ class SupervisorService:
                 result = self.translation_agent.invoke({
                     "messages": [{"role": "user", "content": request}]
                 })
-                return result["messages"][-1].text
+                return result["messages"][-1].content
             return translation_agent_tool
         
         # Collect all specialized agent tools
