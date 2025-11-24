@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '../context/authStore'
+import robotHappyIcon from '../icons/robot_happy_small.png'
 
 function Register() {
   const [email, setEmail] = useState('')
@@ -16,12 +17,12 @@ function Register() {
     setError('')
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      setError('As palavras-passe não coincidem')
       return
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters')
+      setError('A palavra-passe deve ter pelo menos 8 caracteres')
       return
     }
 
@@ -39,86 +40,261 @@ function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
-          </h2>
+    <div style={{ 
+      minHeight: '100vh', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      backgroundColor: 'var(--bg-primary)', 
+      padding: '1rem' 
+    }}>
+      <div style={{ 
+        maxWidth: '32rem', 
+        width: '100%', 
+        backgroundColor: 'var(--bg-secondary)', 
+        padding: '2.5rem', 
+        borderRadius: '16px', 
+        border: '1px solid var(--border-color)',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+      }}>
+        {/* Header with Logo and Title */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            gap: '16px',
+            marginBottom: '1rem'
+          }}>
+            <img 
+              src={robotHappyIcon} 
+              alt="misteriosAI" 
+              style={{ width: '64px', height: '64px', objectFit: 'contain' }}
+            />
+            <h1 style={{ 
+              fontSize: '2rem', 
+              fontWeight: '600', 
+              color: 'var(--text-primary)', 
+              margin: 0 
+            }}>
+              misteriosAI
+            </h1>
+          </div>
+          <p style={{ 
+            fontSize: '1rem', 
+            color: 'var(--text-secondary)', 
+            marginTop: '0.5rem',
+            lineHeight: '1.6'
+          }}>
+            O seu assistente inteligente para Misterios Lda
+          </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+
+        {/* Capabilities Description */}
+        <div style={{ 
+          backgroundColor: 'var(--bg-tertiary)', 
+          padding: '1.25rem', 
+          borderRadius: '12px', 
+          marginBottom: '2rem',
+          border: '1px solid var(--border-color)'
+        }}>
+          <h3 style={{ 
+            fontSize: '0.875rem', 
+            fontWeight: '600', 
+            color: 'var(--text-primary)', 
+            marginTop: 0,
+            marginBottom: '0.75rem'
+          }}>
+            O que é o misteriosAI?
+          </h3>
+          <p style={{ 
+            fontSize: '0.875rem', 
+            color: 'var(--text-secondary)', 
+            margin: 0,
+            lineHeight: '1.6'
+          }}>
+            O misteriosAI é um assistente pessoal inteligente alimentado por tecnologia de IA avançada. 
+            Ajuda-o a aceder e gerir dados da empresa através de capacidades especializadas:
+          </p>
+          <ul style={{ 
+            fontSize: '0.875rem', 
+            color: 'var(--text-secondary)', 
+            marginTop: '0.75rem',
+            marginBottom: 0,
+            paddingLeft: '1.25rem',
+            lineHeight: '1.8'
+          }}>
+            <li><strong style={{ color: 'var(--text-primary)' }}>Acesso ao Primavera ERP:</strong> Consultar vendas, inventário, finanças e dados empresariais</li>
+            <li><strong style={{ color: 'var(--text-primary)' }}>Gestão de Ficheiros:</strong> Pesquisar e aceder a documentos do SharePoint/OneDrive</li>
+            <li><strong style={{ color: 'var(--text-primary)' }}>Assistência em Tempo Real:</strong> Obter respostas instantâneas com respostas em streaming</li>
+          </ul>
+        </div>
+
+        <form onSubmit={handleSubmit}>
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div style={{ 
+              backgroundColor: '#7f1d1d', 
+              border: '1px solid #991b1b', 
+              color: '#fecaca', 
+              padding: '0.75rem 1rem', 
+              borderRadius: '8px', 
+              marginBottom: '1.5rem',
+              fontSize: '0.875rem'
+            }}>
               {error}
             </div>
           )}
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="email" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="confirmPassword" className="sr-only">
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Confirm Password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
-            </div>
+          
+          <div style={{ marginBottom: '1rem' }}>
+            <label htmlFor="email" style={{ 
+              display: 'block', 
+              marginBottom: '0.5rem', 
+              fontSize: '0.875rem', 
+              fontWeight: '500', 
+              color: 'var(--text-primary)' 
+            }}>
+              Endereço de email
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              style={{ 
+                width: '100%', 
+                padding: '0.75rem 1rem', 
+                backgroundColor: 'var(--bg-input)', 
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)', 
+                borderRadius: '8px', 
+                fontSize: '0.875rem',
+                outline: 'none',
+                transition: 'border-color 0.2s'
+              }}
+              placeholder="Endereço de email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onFocus={(e) => e.target.style.borderColor = 'var(--accent-color)'}
+              onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+            />
+          </div>
+          
+          <div style={{ marginBottom: '1rem' }}>
+            <label htmlFor="password" style={{ 
+              display: 'block', 
+              marginBottom: '0.5rem', 
+              fontSize: '0.875rem', 
+              fontWeight: '500', 
+              color: 'var(--text-primary)' 
+            }}>
+              Palavra-passe
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              required
+              style={{ 
+                width: '100%', 
+                padding: '0.75rem 1rem', 
+                backgroundColor: 'var(--bg-input)', 
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)', 
+                borderRadius: '8px', 
+                fontSize: '0.875rem',
+                outline: 'none',
+                transition: 'border-color 0.2s'
+              }}
+              placeholder="Palavra-passe (mín. 8 caracteres)"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onFocus={(e) => e.target.style.borderColor = 'var(--accent-color)'}
+              onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+            />
+          </div>
+          
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label htmlFor="confirmPassword" style={{ 
+              display: 'block', 
+              marginBottom: '0.5rem', 
+              fontSize: '0.875rem', 
+              fontWeight: '500', 
+              color: 'var(--text-primary)' 
+            }}>
+              Confirmar Palavra-passe
+            </label>
+            <input
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              required
+              style={{ 
+                width: '100%', 
+                padding: '0.75rem 1rem', 
+                backgroundColor: 'var(--bg-input)', 
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)', 
+                borderRadius: '8px', 
+                fontSize: '0.875rem',
+                outline: 'none',
+                transition: 'border-color 0.2s'
+              }}
+              placeholder="Confirmar Palavra-passe"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              onFocus={(e) => e.target.style.borderColor = 'var(--accent-color)'}
+              onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+            />
           </div>
 
-          <div>
+          <div style={{ marginBottom: '1.5rem' }}>
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              style={{ 
+                width: '100%', 
+                padding: '0.875rem 1rem', 
+                backgroundColor: loading ? 'var(--bg-tertiary)' : 'var(--accent-color)', 
+                color: loading ? 'var(--text-muted)' : 'white', 
+                border: 'none', 
+                borderRadius: '8px', 
+                fontSize: '0.875rem', 
+                fontWeight: '500', 
+                cursor: loading ? 'not-allowed' : 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.target.style.backgroundColor = 'var(--accent-hover)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading) {
+                  e.target.style.backgroundColor = 'var(--accent-color)'
+                }
+              }}
             >
-              {loading ? 'Creating account...' : 'Register'}
+              {loading ? 'A criar conta...' : 'Criar Conta'}
             </button>
           </div>
 
-          <div className="text-center">
+          <div style={{ textAlign: 'center' }}>
             <Link
               to="/login"
-              className="font-medium text-indigo-600 hover:text-indigo-500"
+              style={{ 
+                fontSize: '0.875rem', 
+                fontWeight: '500', 
+                color: 'var(--accent-color)', 
+                textDecoration: 'none',
+                transition: 'color 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.color = 'var(--accent-hover)'}
+              onMouseLeave={(e) => e.target.style.color = 'var(--accent-color)'}
             >
-              Already have an account? Sign in
+              Já tem uma conta? Iniciar sessão
             </Link>
           </div>
         </form>

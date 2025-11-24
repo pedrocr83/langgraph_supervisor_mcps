@@ -16,10 +16,10 @@ function Sidebar({
         const diff = now - date
         const days = Math.floor(diff / (1000 * 60 * 60 * 24))
 
-        if (days === 0) return 'Today'
-        if (days === 1) return 'Yesterday'
-        if (days < 7) return `${days} days ago`
-        return date.toLocaleDateString()
+        if (days === 0) return 'Hoje'
+        if (days === 1) return 'Ontem'
+        if (days < 7) return `Há ${days} dias`
+        return date.toLocaleDateString('pt-PT')
     }
 
     return (
@@ -54,7 +54,7 @@ function Sidebar({
                     onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--bg-tertiary)'}
                 >
                     <span style={{ fontSize: '18px' }}>+</span>
-                    New chat
+                    Nova conversa
                 </button>
             </div>
 
@@ -73,7 +73,7 @@ function Sidebar({
                         color: 'var(--text-muted)',
                         fontSize: '14px'
                     }}>
-                        No conversations yet
+                        Ainda não há conversas
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -108,7 +108,7 @@ function Sidebar({
                                         textOverflow: 'ellipsis',
                                         fontWeight: activeConversationId === conv.id ? '500' : '400',
                                     }}>
-                                        {conv.title || 'New conversation'}
+                                        {conv.title || 'Nova conversa'}
                                     </div>
                                     <div style={{
                                         fontSize: '12px',
@@ -145,7 +145,7 @@ function Sidebar({
                                             e.target.style.backgroundColor = 'transparent'
                                             e.target.style.color = 'var(--text-muted)'
                                         }}
-                                        title="Delete conversation"
+                                        title="Eliminar conversa"
                                     >
                                         🗑️
                                     </button>
@@ -183,7 +183,7 @@ function Sidebar({
                         e.target.style.color = 'var(--text-secondary)'
                     }}
                 >
-                    Logout
+                    Terminar sessão
                 </button>
             </div>
         </div>

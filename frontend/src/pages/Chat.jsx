@@ -138,7 +138,7 @@ function Chat() {
       }
     } catch (error) {
       console.error('Error deleting conversation:', error)
-      alert('Failed to delete conversation')
+      alert('Falha ao eliminar conversa')
     }
   }
 
@@ -212,7 +212,7 @@ function Chat() {
         setToolStatus(null)
         setLoading(false)
         setIsThinking(false)
-        alert(`Error: ${data.message}`)
+        alert(`Erro: ${data.message}`)
       }
     }
 
@@ -343,8 +343,8 @@ function Chat() {
                 fontSize: '16px',
               }}>
                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>💬</div>
-                <p>Start a conversation with misteriosAI</p>
-                <p style={{ fontSize: '14px', marginTop: '8px' }}>Ask me anything!</p>
+                <p>Inicie uma conversa com o misteriosAI</p>
+                <p style={{ fontSize: '14px', marginTop: '8px' }}>Pergunte-me qualquer coisa!</p>
               </div>
             )}
             {messages.map((msg, idx) => {
@@ -396,7 +396,7 @@ function Chat() {
                         marginBottom: '4px',
                         alignSelf: msg.role === 'user' ? 'flex-start' : 'flex-end',
                       }}>
-                        Tool: {msg.toolName}
+                        Ferramenta: {msg.toolName}
                       </div>
                     )}
                     <div style={{
@@ -467,7 +467,7 @@ function Chat() {
                     fontSize: '16px',
                     boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                   }}>
-                    misteriosAI is thinking
+                    O misteriosAI está a pensar
                     <span style={{ animation: 'blink 1.4s linear infinite' }}>.</span>
                     <span style={{ animation: 'blink 1.4s linear infinite 0.2s' }}>.</span>
                     <span style={{ animation: 'blink 1.4s linear infinite 0.4s' }}>.</span>
@@ -549,15 +549,15 @@ function Chat() {
                             <span style={{ animation: 'blink 1.4s linear infinite' }}>●</span>
                             <span style={{ animation: 'blink 1.4s linear infinite 0.2s' }}>●</span>
                             <span style={{ animation: 'blink 1.4s linear infinite 0.4s' }}>●</span>
-                            <span style={{ marginLeft: '8px' }}>Communicating with {toolStatus.name}...</span>
+                            <span style={{ marginLeft: '8px' }}>A comunicar com {toolStatus.name}...</span>
                           </>
                         ) : (
-                          <>🔧 Calling tool: {toolStatus.name}...</>
+                          <>🔧 A chamar ferramenta: {toolStatus.name}...</>
                         )}
                       </div>
                     ) : (
                       <>
-                        <div style={{ fontWeight: '500', marginBottom: '4px' }}>🔧 Tool: {toolStatus.name}</div>
+                        <div style={{ fontWeight: '500', marginBottom: '4px' }}>🔧 Ferramenta: {toolStatus.name}</div>
                         <pre style={{
                           fontSize: '12px',
                           color: 'var(--text-muted)',
@@ -590,7 +590,7 @@ function Chat() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Send a message..."
+                placeholder="Enviar uma mensagem..."
                 disabled={loading}
                 style={{
                   flex: 1,
@@ -629,7 +629,7 @@ function Chat() {
                   }
                 }}
               >
-                {loading ? 'Sending...' : 'Send'}
+                {loading ? 'A enviar...' : 'Enviar'}
               </button>
             </form>
           </div>
