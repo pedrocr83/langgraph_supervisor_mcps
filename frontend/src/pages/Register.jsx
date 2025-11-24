@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '../context/authStore'
+import { useLanguageStore } from '../context/languageStore'
+import { shallow } from 'zustand/shallow'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 import robotHappyIcon from '../icons/robot_happy_small.png'
 
 function Register() {
@@ -11,18 +14,22 @@ function Register() {
   const [loading, setLoading] = useState(false)
   const register = useAuthStore((state) => state.register)
   const navigate = useNavigate()
+  const { language, t } = useLanguageStore(
+    (state) => ({ language: state.language, t: state.t }),
+    shallow
+  )
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
 
     if (password !== confirmPassword) {
-      setError('As palavras-passe não coincidem')
+      setError(t('login.passwordsNoMatch'))
       return
     }
 
     if (password.length < 8) {
-      setError('A palavra-passe deve ter pelo menos 8 caracteres')
+      setError(t('login.passwordTooShort'))
       return
     }
 
@@ -55,8 +62,14 @@ function Register() {
         padding: '2.5rem', 
         borderRadius: '16px', 
         border: '1px solid var(--border-color)',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+        position: 'relative'
       }}>
+        {/* Language Switcher */}
+        <div style={{ position: 'absolute', top: '1rem', right: '1rem' }}>
+          <LanguageSwitcher />
+        </div>
+
         {/* Header with Logo and Title */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{ 
@@ -77,7 +90,7 @@ function Register() {
               color: 'var(--text-primary)', 
               margin: 0 
             }}>
-              misteriosAI
+              {t('login.title')}
             </h1>
           </div>
           <p style={{ 
@@ -86,7 +99,7 @@ function Register() {
             marginTop: '0.5rem',
             lineHeight: '1.6'
           }}>
-            O seu assistente inteligente para Misterios Lda
+            {t('login.subtitle')}
           </p>
         </div>
 
@@ -105,7 +118,7 @@ function Register() {
             marginTop: 0,
             marginBottom: '0.75rem'
           }}>
-            O que é o misteriosAI?
+            {t('login.whatIs')}
           </h3>
           <p style={{ 
             fontSize: '0.875rem', 
@@ -113,8 +126,7 @@ function Register() {
             margin: 0,
             lineHeight: '1.6'
           }}>
-            O misteriosAI é um assistente pessoal inteligente alimentado por tecnologia de IA avançada. 
-            Ajuda-o a aceder e gerir dados da empresa através de capacidades especializadas:
+            {t('login.description')}
           </p>
           <ul style={{ 
             fontSize: '0.875rem', 
@@ -124,9 +136,9 @@ function Register() {
             paddingLeft: '1.25rem',
             lineHeight: '1.8'
           }}>
-            <li><strong style={{ color: 'var(--text-primary)' }}>Acesso ao Primavera ERP:</strong> Consultar vendas, inventário, finanças e dados empresariais</li>
-            <li><strong style={{ color: 'var(--text-primary)' }}>Gestão de Ficheiros:</strong> Pesquisar e aceder a documentos do SharePoint/OneDrive</li>
-            <li><strong style={{ color: 'var(--text-primary)' }}>Assistência em Tempo Real:</strong> Obter respostas instantâneas com respostas em streaming</li>
+            <li><strong style={{ color: 'var(--text-primary)' }}>{t('login.capabilities.erp')}</strong></li>
+            <li><strong style={{ color: 'var(--text-primary)' }}>{t('login.capabilities.files')}</strong></li>
+            <li><strong style={{ color: 'var(--text-primary)' }}>{t('login.capabilities.realtime')}</strong></li>
           </ul>
         </div>
 
@@ -153,7 +165,7 @@ function Register() {
               fontWeight: '500', 
               color: 'var(--text-primary)' 
             }}>
-              Endereço de email
+              {t('login.email')}
             </label>
             <input
               id="email"
@@ -172,7 +184,7 @@ function Register() {
                 outline: 'none',
                 transition: 'border-color 0.2s'
               }}
-              placeholder="Endereço de email"
+              placeholder={t('login.email')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onFocus={(e) => e.target.style.borderColor = 'var(--accent-color)'}
@@ -188,7 +200,7 @@ function Register() {
               fontWeight: '500', 
               color: 'var(--text-primary)' 
             }}>
-              Palavra-passe
+              {t('login.password')}
             </label>
             <input
               id="password"
@@ -207,7 +219,7 @@ function Register() {
                 outline: 'none',
                 transition: 'border-color 0.2s'
               }}
-              placeholder="Palavra-passe (mín. 8 caracteres)"
+              placeholder={t('login.passwordMin')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onFocus={(e) => e.target.style.borderColor = 'var(--accent-color)'}
@@ -223,7 +235,7 @@ function Register() {
               fontWeight: '500', 
               color: 'var(--text-primary)' 
             }}>
-              Confirmar Palavra-passe
+              {t('login.confirmPassword')}
             </label>
             <input
               id="confirmPassword"
@@ -242,7 +254,7 @@ function Register() {
                 outline: 'none',
                 transition: 'border-color 0.2s'
               }}
-              placeholder="Confirmar Palavra-passe"
+              placeholder={t('login.confirmPassword')}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               onFocus={(e) => e.target.style.borderColor = 'var(--accent-color)'}
@@ -277,7 +289,7 @@ function Register() {
                 }
               }}
             >
-              {loading ? 'A criar conta...' : 'Criar Conta'}
+              {loading ? t('login.creatingAccount') : t('login.createAccount')}
             </button>
           </div>
 
@@ -294,7 +306,7 @@ function Register() {
               onMouseEnter={(e) => e.target.style.color = 'var(--accent-hover)'}
               onMouseLeave={(e) => e.target.style.color = 'var(--accent-color)'}
             >
-              Já tem uma conta? Iniciar sessão
+              {t('login.alreadyHaveAccount')}
             </Link>
           </div>
         </form>

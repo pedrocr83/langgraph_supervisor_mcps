@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '../context/authStore'
+import { useLanguageStore } from '../context/languageStore'
+import { shallow } from 'zustand/shallow'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 import robotHappyIcon from '../icons/robot_happy_small.png'
 
 function Login() {
@@ -10,6 +13,10 @@ function Login() {
   const [loading, setLoading] = useState(false)
   const login = useAuthStore((state) => state.login)
   const navigate = useNavigate()
+  const { language, t } = useLanguageStore(
+    (state) => ({ language: state.language, t: state.t }),
+    shallow
+  )
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -43,8 +50,14 @@ function Login() {
         padding: '2.5rem', 
         borderRadius: '16px', 
         border: '1px solid var(--border-color)',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+        position: 'relative'
       }}>
+        {/* Language Switcher */}
+        <div style={{ position: 'absolute', top: '1rem', right: '1rem' }}>
+          <LanguageSwitcher />
+        </div>
+
         {/* Header with Logo and Title */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{ 
@@ -65,7 +78,7 @@ function Login() {
               color: 'var(--text-primary)', 
               margin: 0 
             }}>
-              misteriosAI
+              {t('login.title')}
             </h1>
           </div>
           <p style={{ 
@@ -74,7 +87,7 @@ function Login() {
             marginTop: '0.5rem',
             lineHeight: '1.6'
           }}>
-            O seu assistente inteligente para Misterios Lda
+            {t('login.subtitle')}
           </p>
         </div>
 
@@ -93,7 +106,7 @@ function Login() {
             marginTop: 0,
             marginBottom: '0.75rem'
           }}>
-            O que é o misteriosAI?
+            {t('login.whatIs')}
           </h3>
           <p style={{ 
             fontSize: '0.875rem', 
@@ -101,8 +114,7 @@ function Login() {
             margin: 0,
             lineHeight: '1.6'
           }}>
-            O misteriosAI é um assistente pessoal inteligente alimentado por tecnologia de IA avançada. 
-            Ajuda-o a aceder e gerir dados da empresa através de capacidades especializadas:
+            {t('login.description')}
           </p>
           <ul style={{ 
             fontSize: '0.875rem', 
@@ -112,9 +124,9 @@ function Login() {
             paddingLeft: '1.25rem',
             lineHeight: '1.8'
           }}>
-            <li><strong style={{ color: 'var(--text-primary)' }}>Acesso ao Primavera ERP:</strong> Consultar vendas, inventário, finanças e dados empresariais</li>
-            <li><strong style={{ color: 'var(--text-primary)' }}>Gestão de Ficheiros:</strong> Pesquisar e aceder a documentos do SharePoint/OneDrive</li>
-            <li><strong style={{ color: 'var(--text-primary)' }}>Assistência em Tempo Real:</strong> Obter respostas instantâneas com respostas em streaming</li>
+            <li><strong style={{ color: 'var(--text-primary)' }}>{t('login.capabilities.erp')}</strong></li>
+            <li><strong style={{ color: 'var(--text-primary)' }}>{t('login.capabilities.files')}</strong></li>
+            <li><strong style={{ color: 'var(--text-primary)' }}>{t('login.capabilities.realtime')}</strong></li>
           </ul>
         </div>
 
@@ -141,7 +153,7 @@ function Login() {
               fontWeight: '500', 
               color: 'var(--text-primary)' 
             }}>
-              Endereço de email
+              {t('login.email')}
             </label>
             <input
               id="email"
@@ -160,7 +172,7 @@ function Login() {
                 outline: 'none',
                 transition: 'border-color 0.2s'
               }}
-              placeholder="Endereço de email"
+              placeholder={t('login.email')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onFocus={(e) => e.target.style.borderColor = 'var(--accent-color)'}
@@ -176,7 +188,7 @@ function Login() {
               fontWeight: '500', 
               color: 'var(--text-primary)' 
             }}>
-              Palavra-passe
+              {t('login.password')}
             </label>
             <input
               id="password"
@@ -195,7 +207,7 @@ function Login() {
                 outline: 'none',
                 transition: 'border-color 0.2s'
               }}
-              placeholder="Palavra-passe"
+              placeholder={t('login.password')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onFocus={(e) => e.target.style.borderColor = 'var(--accent-color)'}
@@ -230,7 +242,7 @@ function Login() {
                 }
               }}
             >
-              {loading ? 'A iniciar sessão...' : 'Iniciar Sessão'}
+              {loading ? t('login.signingIn') : t('login.signIn')}
             </button>
           </div>
 
@@ -247,7 +259,7 @@ function Login() {
               onMouseEnter={(e) => e.target.style.color = 'var(--accent-hover)'}
               onMouseLeave={(e) => e.target.style.color = 'var(--accent-color)'}
             >
-              Não tem uma conta? Registar
+              {t('login.noAccount')}
             </Link>
           </div>
         </form>

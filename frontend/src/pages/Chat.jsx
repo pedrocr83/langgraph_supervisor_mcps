@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuthStore } from '../context/authStore'
+import { useLanguageStore } from '../context/languageStore'
+import { shallow } from 'zustand/shallow'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 import Sidebar from '../components/Sidebar'
 import axios from 'axios'
 import maleIcon from '../icons/male_small.png'
@@ -11,6 +14,10 @@ import robotAngryIcon from '../icons/robot_angry_small.png'
 const API_URL = ''
 
 function Chat() {
+  const { language, t } = useLanguageStore(
+    (state) => ({ language: state.language, t: state.t }),
+    shallow
+  )
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [conversationId, setConversationId] = useState(null)
@@ -138,7 +145,7 @@ function Chat() {
       }
     } catch (error) {
       console.error('Error deleting conversation:', error)
-      alert('Falha ao eliminar conversa')
+      alert(t('chat.deleteFailed'))
     }
   }
 
@@ -212,7 +219,7 @@ function Chat() {
         setToolStatus(null)
         setLoading(false)
         setIsThinking(false)
-        alert(`Erro: ${data.message}`)
+        alert(`${t('chat.error')}: ${data.message}`)
       }
     }
 
@@ -316,6 +323,9 @@ function Chat() {
           padding: '16px 24px',
           borderBottom: '1px solid var(--border-color)',
           backgroundColor: 'var(--bg-secondary)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
         }}>
           <h1 style={{
             fontSize: '20px',
@@ -325,6 +335,7 @@ function Chat() {
           }}>
             misteriosAI
           </h1>
+          <LanguageSwitcher />
         </header>
 
         {/* Messages */}
@@ -343,8 +354,8 @@ function Chat() {
                 fontSize: '16px',
               }}>
                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>💬</div>
-                <p>Inicie uma conversa com o misteriosAI</p>
-                <p style={{ fontSize: '14px', marginTop: '8px' }}>Pergunte-me qualquer coisa!</p>
+                <p>{t('chat.startConversation')}</p>
+                <p style={{ fontSize: '14px', marginTop: '8px' }}>{t('chat.askAnything')}</p>
               </div>
             )}
             {messages.map((msg, idx) => {
@@ -396,7 +407,7 @@ function Chat() {
                         marginBottom: '4px',
                         alignSelf: msg.role === 'user' ? 'flex-start' : 'flex-end',
                       }}>
-                        Ferramenta: {msg.toolName}
+                        {t('chat.tool')}: {msg.toolName}
                       </div>
                     )}
                     <div style={{
@@ -467,7 +478,7 @@ function Chat() {
                     fontSize: '16px',
                     boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                   }}>
-                    O misteriosAI está a pensar
+                    {t('chat.thinking')}
                     <span style={{ animation: 'blink 1.4s linear infinite' }}>.</span>
                     <span style={{ animation: 'blink 1.4s linear infinite 0.2s' }}>.</span>
                     <span style={{ animation: 'blink 1.4s linear infinite 0.4s' }}>.</span>
@@ -549,15 +560,15 @@ function Chat() {
                             <span style={{ animation: 'blink 1.4s linear infinite' }}>●</span>
                             <span style={{ animation: 'blink 1.4s linear infinite 0.2s' }}>●</span>
                             <span style={{ animation: 'blink 1.4s linear infinite 0.4s' }}>●</span>
-                            <span style={{ marginLeft: '8px' }}>A comunicar com {toolStatus.name}...</span>
+                            <span style={{ marginLeft: '8px' }}>{t('chat.communicating')} {toolStatus.name}...</span>
                           </>
                         ) : (
-                          <>🔧 A chamar ferramenta: {toolStatus.name}...</>
+                          <>🔧 {t('chat.callingTool')}: {toolStatus.name}...</>
                         )}
                       </div>
                     ) : (
                       <>
-                        <div style={{ fontWeight: '500', marginBottom: '4px' }}>🔧 Ferramenta: {toolStatus.name}</div>
+                        <div style={{ fontWeight: '500', marginBottom: '4px' }}>🔧 {t('chat.tool')}: {toolStatus.name}</div>
                         <pre style={{
                           fontSize: '12px',
                           color: 'var(--text-muted)',
@@ -590,7 +601,7 @@ function Chat() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Enviar uma mensagem..."
+                placeholder={t('chat.sendMessage')}
                 disabled={loading}
                 style={{
                   flex: 1,
@@ -629,7 +640,7 @@ function Chat() {
                   }
                 }}
               >
-                {loading ? 'A enviar...' : 'Enviar'}
+                {loading ? t('chat.sending') : t('chat.send')}
               </button>
             </form>
           </div>

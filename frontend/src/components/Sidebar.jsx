@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLanguageStore } from '../context/languageStore'
 
 function Sidebar({
     conversations,
@@ -9,6 +10,8 @@ function Sidebar({
     onLogout
 }) {
     const [hoveredChatId, setHoveredChatId] = useState(null)
+    const t = useLanguageStore((state) => state.t)
+    const language = useLanguageStore((state) => state.language)
 
     const formatDate = (dateString) => {
         const date = new Date(dateString)
@@ -16,10 +19,13 @@ function Sidebar({
         const diff = now - date
         const days = Math.floor(diff / (1000 * 60 * 60 * 24))
 
-        if (days === 0) return 'Hoje'
-        if (days === 1) return 'Ontem'
-        if (days < 7) return `Há ${days} dias`
-        return date.toLocaleDateString('pt-PT')
+        if (days === 0) return t('sidebar.today')
+        if (days === 1) return t('sidebar.yesterday')
+        if (days < 7) {
+            const daysAgo = t('sidebar.daysAgo')
+            return daysAgo.replace('{days}', days)
+        }
+        return date.toLocaleDateString(language === 'pt' ? 'pt-PT' : 'en-US')
     }
 
     return (
@@ -54,7 +60,7 @@ function Sidebar({
                     onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--bg-tertiary)'}
                 >
                     <span style={{ fontSize: '18px' }}>+</span>
-                    Nova conversa
+                    {t('sidebar.newChat')}
                 </button>
             </div>
 
@@ -73,7 +79,7 @@ function Sidebar({
                         color: 'var(--text-muted)',
                         fontSize: '14px'
                     }}>
-                        Ainda não há conversas
+                        {t('sidebar.noConversations')}
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -108,7 +114,7 @@ function Sidebar({
                                         textOverflow: 'ellipsis',
                                         fontWeight: activeConversationId === conv.id ? '500' : '400',
                                     }}>
-                                        {conv.title || 'Nova conversa'}
+                                        {conv.title || t('sidebar.newConversation')}
                                     </div>
                                     <div style={{
                                         fontSize: '12px',
@@ -145,7 +151,7 @@ function Sidebar({
                                             e.target.style.backgroundColor = 'transparent'
                                             e.target.style.color = 'var(--text-muted)'
                                         }}
-                                        title="Eliminar conversa"
+                                        title={t('sidebar.deleteConversation')}
                                     >
                                         🗑️
                                     </button>
@@ -183,7 +189,7 @@ function Sidebar({
                         e.target.style.color = 'var(--text-secondary)'
                     }}
                 >
-                    Terminar sessão
+                    {t('sidebar.logout')}
                 </button>
             </div>
         </div>
