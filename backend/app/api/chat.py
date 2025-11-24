@@ -7,6 +7,7 @@ import uuid
 from app.core.security import current_active_user
 from app.db.models import User
 from app.services.agents.supervisor import get_supervisor_service
+from app.services.title_generator import get_title_generator
 from app.db.session import get_db, AsyncSessionLocal
 from app.db.models import Conversation, Message
 from sqlalchemy import select
@@ -245,6 +246,20 @@ async def websocket_chat(
                 session.add(assistant_msg)
                 await session.commit()
                 
+                # Generate title if conversation has enough messages and title is still default
+                try:
+                    title_generator = await get_title_generator()
+                    new_title = await title_generator.generate_title(session, str(conv_id), min_messages=6)
+                    if new_title:
+                        # Refresh conversation to ensure we have the latest version
+                        await session.refresh(conversation)
+                        conversation.title = new_title
+                        await session.commit()
+                        logger.info(f"Updated conversation {conv_id} title to: {new_title}")
+                except Exception as title_err:
+                    logger.error(f"Error generating title for conversation {conv_id}: {title_err}", exc_info=True)
+                    # Don't fail the request if title generation fails
+                
                 await websocket.send_json({"type": "done"})
 
     except WebSocketDisconnect:
@@ -358,6 +373,20 @@ async def chat(
     )
     db.add(assistant_msg)
     await db.commit()
+    
+    # Generate title if conversation has enough messages and title is still default
+    try:
+        title_generator = await get_title_generator()
+        new_title = await title_generator.generate_title(db, str(conv_id), min_messages=6)
+        if new_title:
+            # Refresh conversation to ensure we have the latest version
+            await db.refresh(conversation)
+            conversation.title = new_title
+            await db.commit()
+            logger.info(f"Updated conversation {conv_id} title to: {new_title}")
+    except Exception as title_err:
+        logger.error(f"Error generating title for conversation {conv_id}: {title_err}", exc_info=True)
+        # Don't fail the request if title generation fails
     
     return ChatResponse(
         conversation_id=conv_id,
