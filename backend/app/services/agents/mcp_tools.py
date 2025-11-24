@@ -1,97 +1,12 @@
 # mcp_tools.py
 import json
 from langchain_mcp_adapters.client import MultiServerMCPClient
-import asyncio
-from langchain_core.tools import StructuredTool
-from typing import Any, Callable
-import inspect
 import logging
 import warnings
 
 # Suppress schema validation warnings from MCP servers
 logging.getLogger("langchain_mcp_adapters").setLevel(logging.ERROR)
 warnings.filterwarnings("ignore", message="Key.*is not supported in schema")
-
-
-def make_sync_tool(async_tool):
-    """Convert an async MCP tool to a sync tool."""
-    
-    # Get the coroutine function from the tool
-    if hasattr(async_tool, 'coroutine'):
-        async_func = async_tool.coroutine
-    elif hasattr(async_tool, 'coroutine_func'):
-        async_func = async_tool.coroutine_func
-    elif hasattr(async_tool, 'func'):
-        async_func = async_tool.func
-    elif hasattr(async_tool, '_run'):
-        async_func = async_tool._run
-    elif hasattr(async_tool, 'ainvoke'):
-        # Use ainvoke method if available
-        async def async_func(**kwargs):
-            return await async_tool.ainvoke(kwargs)
-    else:
-        raise ValueError(f"Could not find async function in tool: {async_tool.name}")
-    
-    # Create a sync wrapper with better event loop handling
-    def sync_wrapper(**kwargs):
-        """Synchronous wrapper for async tool with nested event loop support."""
-        logger = logging.getLogger(__name__)
-        logger.info(f"🔧 MCP Tool Execution: {async_tool.name}")
-        logger.debug(f"   Arguments: {kwargs}")
-        
-        # Fix language parameter for Brave search
-        if async_tool.name == "brave_web_search" and "search_lang" in kwargs:
-            lang = kwargs["search_lang"]
-            # Map generic language codes to Brave-specific codes
-            lang_mapping = {
-                "pt": "pt-br",  # Default Portuguese to Brazilian Portuguese
-                "en": "en",
-                "zh": "zh-hans",  # Default Chinese to Simplified
-            }
-            if lang in lang_mapping:
-                kwargs["search_lang"] = lang_mapping[lang]
-        
-        try:
-            result = None
-            # Check if we're already in an event loop
-            try:
-                loop = asyncio.get_running_loop()
-                # We're in an async context running within an event loop
-                # We need to run the coroutine in the existing loop using run_coroutine_threadsafe
-                # but this requires a new thread with its own event loop
-                import concurrent.futures
-                import threading
-                
-                def run_in_new_loop():
-                    """Run the async function in a new event loop in a separate thread."""
-                    new_loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(new_loop)
-                    try:
-                        return new_loop.run_until_complete(async_func(**kwargs))
-                    finally:
-                        new_loop.close()
-                
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(run_in_new_loop)
-                    result = future.result()
-            except RuntimeError:
-                # No event loop running, safe to use asyncio.run
-                result = asyncio.run(async_func(**kwargs))
-            
-            logger.info(f"✅ MCP Tool Execution Success: {async_tool.name}")
-            return result
-        except Exception as e:
-            logger.error(f"❌ MCP Tool Execution Failed: {async_tool.name}")
-            logger.error(f"   Error: {e}")
-            raise
-    
-    # Create a new StructuredTool with the sync wrapper
-    return StructuredTool(
-        name=async_tool.name,
-        description=async_tool.description,
-        func=sync_wrapper,
-        args_schema=async_tool.args_schema if hasattr(async_tool, 'args_schema') else None,
-    )
 
 
 async def load_mcp_servers_from_config(config_path: str):
@@ -249,17 +164,9 @@ async def load_mcp_servers_from_config(config_path: str):
                 logger.error(f"      - {server_name}: HTTP endpoint {url}")
         raise
     
-    # Convert async tools to sync tools
-    sync_tools = [make_sync_tool(tool) for tool in async_tools]
-    
     # Log summary of loaded tools
-    if sync_tools:
-        tool_names = [tool.name for tool in sync_tools]
-        logger.info(f"   ✅ Loaded {len(sync_tools)} MCP tools: {', '.join(sorted(tool_names))}")
+    if async_tools:
+        tool_names = [tool.name for tool in async_tools]
+        logger.info(f"   ✅ Loaded {len(async_tools)} MCP tools: {', '.join(sorted(tool_names))}")
     
-    return sync_tools, client
-
-
-def load_mcp_servers_sync(config_path: str):
-    """Synchronous wrapper for loading MCP servers."""
-    return asyncio.run(load_mcp_servers_from_config(config_path))
+    return async_tools, client

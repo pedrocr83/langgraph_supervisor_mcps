@@ -174,7 +174,8 @@ async def websocket_chat(
                 seen_message_ids = set()
                 
                 try:
-                    for step in supervisor_service.supervisor_agent.stream(inputs, config):
+                    # Use async streaming to avoid blocking the FastAPI event loop
+                    async for step in supervisor_service.supervisor_agent.astream(inputs, config):
                         for update in step.values():
                             if "messages" not in update:
                                 continue
@@ -307,7 +308,8 @@ async def chat(
     config = {"configurable": {"thread_id": str(conv_id)}}
     inputs = {"messages": [{"role": "user", "content": request.message}]}
     
-    result = supervisor_service.supervisor_agent.invoke(inputs, config)
+    # Use async invocation to better integrate with FastAPI's async model
+    result = await supervisor_service.supervisor_agent.ainvoke(inputs, config)
     
     # Extract final message (only the last one)
     final_message = ""

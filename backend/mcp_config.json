@@ -1,19 +1,5 @@
 {
   "mcpServers": {
-    "puppeteer": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-puppeteer"
-      ]
-    },
-    "sequential-thinking": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-sequential-thinking"
-      ]
-    },
     "brave-search": {
       "transport": "streamable_http",
       "url": "http://brave-search-mcp-server:7000/mcp"
