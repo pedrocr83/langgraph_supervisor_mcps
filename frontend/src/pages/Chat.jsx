@@ -26,6 +26,7 @@ function Chat() {
   const [loading, setLoading] = useState(false)
   const [toolStatus, setToolStatus] = useState(null)
   const [isThinking, setIsThinking] = useState(false)
+  const [isNewChat, setIsNewChat] = useState(false)
   const messagesEndRef = useRef(null)
   const wsRef = useRef(null)
   const logout = useAuthStore((state) => state.logout)
@@ -100,16 +101,18 @@ function Chat() {
   }
 
   useEffect(() => {
-    if (!conversationId && conversations.length > 0) {
+    // Only auto-select first conversation if we're not explicitly in "new chat" mode
+    if (!conversationId && conversations.length > 0 && !isNewChat) {
       const firstConv = conversations[0]
       setConversationId(firstConv.id)
       loadMessages(firstConv.id)
     }
-  }, [conversationId, conversations, loadMessages])
+  }, [conversationId, conversations, loadMessages, isNewChat])
 
   const handleNewChat = () => {
     setConversationId(null)
     setMessages([])
+    setIsNewChat(true) // Set flag to prevent auto-selecting first conversation
     // Close existing WebSocket if any
     if (wsRef.current) {
       wsRef.current.close()
@@ -120,6 +123,7 @@ function Chat() {
   const handleSelectConversation = (convId) => {
     if (convId === conversationId) return
     setConversationId(convId)
+    setIsNewChat(false) // Clear new chat flag when selecting an existing conversation
     loadMessages(convId)
     // Close existing WebSocket and reconnect to new conversation
     if (wsRef.current) {
@@ -165,6 +169,7 @@ function Chat() {
 
       if (data.type === 'conversation_id') {
         setConversationId(data.conversation_id)
+        setIsNewChat(false) // Clear new chat flag when conversation is created
         // Reload conversations to include the new one
         loadConversations()
       } else if (data.type === 'tool_call') {
@@ -291,6 +296,7 @@ function Chat() {
       })
 
       setConversationId(response.data.conversation_id)
+      setIsNewChat(false) // Clear new chat flag when conversation is created
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: response.data.message, complete: true },
