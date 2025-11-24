@@ -4,6 +4,7 @@ import { useLanguageStore } from '../context/languageStore'
 import { shallow } from 'zustand/shallow'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import Sidebar from '../components/Sidebar'
+import MarkdownRenderer from '../components/MarkdownRenderer'
 import axios from 'axios'
 import maleIcon from '../icons/male_small.png'
 import robotHappyIcon from '../icons/robot_happy_small.png'
@@ -417,13 +418,17 @@ function Chat() {
                       borderBottomRightRadius: msg.role === 'assistant' ? '4px' : '16px',
                       backgroundColor: msg.role === 'user' ? 'var(--bg-user-msg)' : 'var(--bg-assistant-msg)',
                       color: 'var(--text-primary)',
-                      whiteSpace: 'pre-wrap',
                       wordBreak: 'break-word',
                       lineHeight: '1.6',
                       fontSize: '16px',
                       boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                      ...(msg.role === 'user' ? { whiteSpace: 'pre-wrap' } : {}),
                     }}>
-                      {cleanContent}
+                      {msg.role === 'assistant' ? (
+                        <MarkdownRenderer content={cleanContent} />
+                      ) : (
+                        cleanContent
+                      )}
                     </div>
                   </div>
                 </div>
