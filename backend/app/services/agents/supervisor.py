@@ -416,9 +416,11 @@ class SupervisorService:
                 """Handle database queries and operations."""
                 if self.database_agent is None:
                     return "Database agent not initialized."
+                # Increase recursion limit for database agent
+                config = {"recursion_limit": 50}
                 result = await self.database_agent.ainvoke({
                     "messages": [{"role": "user", "content": request}]
-                })
+                }, config=config)
                 last_msg = result["messages"][-1]
                 return _message_to_text(last_msg)
             return database_agent_tool
@@ -429,9 +431,11 @@ class SupervisorService:
                 """Handle SharePoint/OneDrive file questions (read-only)."""
                 if self.sharepoint_agent is None:
                     return "SharePoint agent not initialized."
+                # Increase recursion limit for sharepoint agent
+                config = {"recursion_limit": 50}
                 result = await self.sharepoint_agent.ainvoke({
                     "messages": [{"role": "user", "content": request}]
-                })
+                }, config=config)
                 last_msg = result["messages"][-1]
                 return _message_to_text(last_msg)
             return sharepoint_agent_tool

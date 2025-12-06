@@ -168,7 +168,10 @@ async def websocket_chat(
                 session.add(user_msg)
                 await session.commit()
                 
-                config = {"configurable": {"thread_id": str(conv_id)}}
+                config = {
+                    "configurable": {"thread_id": str(conv_id)},
+                    "recursion_limit": 50  # Increase recursion limit to prevent recursion errors
+                }
                 inputs = {"messages": [{"role": "user", "content": user_message}]}
                 
                 full_response = ""
