@@ -68,6 +68,14 @@ SECRET_KEY=your-secret-key-change-in-production
 GOOGLE_API_KEY=your-google-api-key
 BRAVE_API_KEY=your-brave-api-key
 DATABASE_URL=postgresql+asyncpg://langraph:langraph_dev_password@localhost:5432/langraph_supervisor
+
+# Local Agents (vLLM) Configuration
+# Set USE_LOCAL_AGENTS=true to use vLLM for database and sharepoint sub-agents
+USE_LOCAL_AGENTS=false
+VLLM_API_BASE=http://localhost:8001/v1
+VLLM_MODEL=microsoft/Phi-4-mini-instruct
+VLLM_TEMPERATURE=0.0
+VLLM_MAX_TOKENS=4096
 ```
 
 ## Features

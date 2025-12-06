@@ -14,7 +14,10 @@
         "sh",
         "-c",
         "exec /rust-mcp-filesystem /workspace"
-      ]
+      ],
+      "env": {
+        "RUST_LOG": "info"
+      }
     },
     "mcp-db-server": {
       "transport": "stdio",
@@ -26,6 +29,18 @@
         "python",
         "-m",
         "mcp_server"
+      ]
+    },
+    "document-reader": {
+      "transport": "stdio",
+      "command": "docker",
+      "args": [
+        "exec",
+        "-i",
+        "document-reader-mcp-server",
+        "python",
+        "-m",
+        "app.mcp_server"
       ]
     }
   }

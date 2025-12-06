@@ -1,4 +1,5 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.prebuilt import create_react_agent
 from langchain.tools import tool as langchain_tool
@@ -23,7 +24,7 @@ def categorize_tools(tools: List[BaseTool]) -> dict:
         tool_lower = tool.name.lower()
         if any(kw in tool_lower for kw in ["postgres", "postgresql", "db_", "sql", "query", "table", "schema", "mcp-db", "mcp_db"]):
             categories["database"].append(tool)
-        elif any(kw in tool_lower for kw in ["sharepoint", "onedrive", "filesystem", "file_", "directory", "list_directory", "search_files"]):
+        elif any(kw in tool_lower for kw in ["sharepoint", "onedrive", "filesystem", "file_", "directory", "list_directory", "search_files", "read_document", "read_documents"]):
             categories["sharepoint"].append(tool)
         else:
             categories["web"].append(tool)
@@ -117,7 +118,7 @@ Remember: This is a Portuguese ERP system (Primavera) with Portuguese table name
 SHAREPOINT_AGENT_PROMPT = """You are the SharePoint File Information Agent for Misterios Lda.
 
 PRIMARY PURPOSE:
-Your sole purpose is to provide information about files and contents from the SharePoint_100Misterios directory (also known as OneDrive or company shared folder) located at `/home/misterios/SharePoint_100Misterios`.
+Your sole purpose is to provide information about files and contents from the SharePoint_100Misterios directory (also known as OneDrive or company shared folder) located at `/workspace`.
 
 IMPORTANT CONSTRAINTS:
 - **READ-ONLY ACCESS**: The SharePoint directory is mounted as read-only (`:ro`)
@@ -125,11 +126,13 @@ IMPORTANT CONSTRAINTS:
 - **INFORMATION ONLY**: Your role is to read, search, list, and provide information about existing files
 
 WORKSPACE LOCATION:
-- Primary directory: `/home/misterios/SharePoint_100Misterios`
+- Primary directory: `/workspace` (this is the SharePoint_100Misterios directory mounted inside the container)
 - **Also known as**: OneDrive, company shared folder, or SharePoint
 - This is a SharePoint-synced directory (OneDrive) containing company documents, files, and data
 - When users refer to "OneDrive", "company shared folder", or "SharePoint", they mean this directory
-- All file paths should be relative to this workspace or use absolute paths starting with `/home/misterios/SharePoint_100Misterios`
+- **CRITICAL**: All file paths MUST use `/workspace` as the base path, NOT `/home/misterios/SharePoint_100Misterios`
+- Use paths like `/workspace/filename.pdf` or `/workspace/folder/subfolder/file.txt`
+- The `/workspace` directory is the root of the SharePoint filesystem accessible to you
 
 RESPONSIBILITIES:
 - Read file contents and provide information about files
@@ -272,9 +275,9 @@ class SupervisorService:
         logger.info("SUPERVISOR INITIALIZATION")
         logger.info("-" * 80)
         
-        # Initialize LLM
+        # Initialize LLM for supervisor (always uses Google Gemini)
         model_name = "gemini-2.5-pro"
-        logger.info(f"🤖 Model: {model_name}")
+        logger.info(f"🤖 Supervisor Model: {model_name}")
         logger.info(f"   Temperature: 1.0")
         logger.info(f"   Max Retries: 2")
         
@@ -285,13 +288,34 @@ class SupervisorService:
             google_api_key=settings.GOOGLE_API_KEY,
         )
         
+        # Initialize LLM for sub-agents (database and sharepoint)
+        # Use vLLM if USE_LOCAL_AGENTS is enabled, otherwise use Google Gemini
+        if settings.USE_LOCAL_AGENTS and settings.VLLM_API_BASE and settings.VLLM_MODEL:
+            logger.info("🔧 Using vLLM for sub-agents (database and sharepoint)")
+            logger.info(f"   vLLM API Base: {settings.VLLM_API_BASE}")
+            logger.info(f"   vLLM Model: {settings.VLLM_MODEL}")
+            logger.info(f"   Temperature: {settings.VLLM_TEMPERATURE or 0.0}")
+            logger.info(f"   Max Tokens: {settings.VLLM_MAX_TOKENS or 4096}")
+            
+            sub_agent_llm = ChatOpenAI(
+                model=settings.VLLM_MODEL,
+                openai_api_key="EMPTY",
+                openai_api_base=settings.VLLM_API_BASE,
+                temperature=settings.VLLM_TEMPERATURE or 0.0,
+                max_tokens=settings.VLLM_MAX_TOKENS or 4096,
+            )
+        else:
+            logger.info("🔧 Using Google Gemini for sub-agents (database and sharepoint)")
+            sub_agent_llm = self.llm
+        
         # Load MCP tools from config (gracefully handle errors)
         mcp_tools = []
         self.mcp_client = None
         logger.info("📦 Loading MCP tools...")
-        logger.info(f"   Config path: {settings.MCP_CONFIG_PATH}")
+        mcp_config_path = settings.MCP_CONFIG_PATH or "mcp_config.json"
+        logger.info(f"   Config path: {mcp_config_path}")
         try:
-            mcp_tools, self.mcp_client = await load_mcp_servers_from_config(settings.MCP_CONFIG_PATH)
+            mcp_tools, self.mcp_client = await load_mcp_servers_from_config(mcp_config_path)
             logger.info(f"✅ Successfully loaded {len(mcp_tools)} MCP tools")
         except Exception as e:
             logger.error(f"⚠️  Failed to load MCP servers: {e}")
@@ -325,7 +349,7 @@ class SupervisorService:
         
         if db_tools:
             self.database_agent = create_react_agent(
-                self.llm,
+                sub_agent_llm,
                 tools=db_tools,
                 prompt=DATABASE_AGENT_PROMPT,
             )
@@ -340,7 +364,7 @@ class SupervisorService:
         
         if sharepoint_tools:
             self.sharepoint_agent = create_react_agent(
-                self.llm,
+                sub_agent_llm,
                 tools=sharepoint_tools,
                 prompt=SHAREPOINT_AGENT_PROMPT,
             )

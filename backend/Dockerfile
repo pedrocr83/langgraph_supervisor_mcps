@@ -44,6 +44,7 @@ RUN uv pip install --system \
     websockets \
     langchain \
     langchain-google-genai \
+    langchain-openai \
     langchain-mcp-adapters \
     langgraph-supervisor \
     requests
