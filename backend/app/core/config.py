@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     VLLM_MODEL: Optional[str] = None
     VLLM_TEMPERATURE: Optional[float] = None
     VLLM_MAX_TOKENS: Optional[int] = None
+
+    # Memory / Embeddings
+    EMBEDDINGS_URL: Optional[str] = None  # TEI endpoint
+    EMBEDDINGS_MODEL_ID: Optional[str] = None
+    MEMORY_TOP_K: int = 5
+    MEMORY_TIMEOUT_SECONDS: float = 15.0
+    MEMORY_ENABLE: bool = True
+    MEMORY_MAX_CHARS: int = 4000  # truncate texts before embedding to avoid 413
+    MEMORY_CHUNK_SIZE: int = 800  # chunk size (chars) per embedding call
     
     class Config:
         env_file = str(ENV_FILE) if ENV_FILE.exists() else ".env"

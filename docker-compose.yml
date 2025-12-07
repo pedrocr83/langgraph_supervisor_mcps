@@ -1,20 +1,4 @@
 services:
-  misterios-db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: langraph
-      POSTGRES_PASSWORD: langraph_dev_password
-      POSTGRES_DB: langraph_supervisor
-    ports:
-      - "${POSTGRES_PORT:-5433}:5432"  # Default to 5433 to avoid conflicts
-    volumes:
-      - postgres_data_v2:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U langraph -d langraph_supervisor"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
       context: ./backend
@@ -22,7 +6,10 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://langraph:langraph_dev_password@misterios-db:5432/langraph_supervisor
+      DATABASE_URL: postgresql+asyncpg://misterios:misteriospassword@postgres:5432/postgres
+      EMBEDDINGS_URL: http://tei:80
+      EMBEDDINGS_MODEL_ID: intfloat/multilingual-e5-large-instruct
+      MEMORY_ENABLE: "true"
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
       BRAVE_API_KEY: ${BRAVE_API_KEY}
@@ -33,10 +20,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro  # Allow docker exec commands
     networks:
       - default
-      - mcp-network  # Connect to MCP servers network
-    depends_on:
-      misterios-db:
-        condition: service_healthy
+      - mcp-network-llm  # Shared external network for DB/TEI
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
@@ -52,12 +36,12 @@ services:
       - /app/node_modules
     depends_on:
       - backend
+    networks:
+      - default
+      - mcp-network-llm
 
 networks:
-  mcp-network:
-    name: mcp-network
+  mcp-network-llm:
+    name: mcp-network-llm
     external: true
-
-volumes:
-  postgres_data_v2:
 

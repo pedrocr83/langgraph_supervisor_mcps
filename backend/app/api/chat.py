@@ -5,6 +5,7 @@ from typing import Optional
 import json
 import uuid
 from app.core.security import current_active_user
+from app.core.config import settings
 from app.db.models import User
 from app.services.agents.supervisor import get_supervisor_service
 from app.services.title_generator import get_title_generator
@@ -13,6 +14,8 @@ from app.db.models import Conversation, Message
 from sqlalchemy import select
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.memory.semantic_memory import SemanticMemory
+from app.memory.procedural_memory import ProceduralMemory
 import logging
 import re
 
@@ -167,15 +170,37 @@ async def websocket_chat(
                 )
                 session.add(user_msg)
                 await session.commit()
+
+                semantic_memory = SemanticMemory(session)
+                procedural_memory = ProceduralMemory(session)
+
+                memory_context = ""
+                semantic_hits = await semantic_memory.retrieve(
+                    user_message,
+                    user_id=user.id,
+                    agent_id="supervisor",
+                    conversation_id=conv_id,
+                    top_k=settings.MEMORY_TOP_K,
+                )
+                if semantic_hits:
+                    formatted = [
+                        f"- {hit.text}" for hit in semantic_hits
+                    ]
+                    memory_context = "Relevant prior context:\n" + "\n".join(formatted)
                 
                 config = {
                     "configurable": {"thread_id": str(conv_id)},
                     "recursion_limit": 50  # Increase recursion limit to prevent recursion errors
                 }
-                inputs = {"messages": [{"role": "user", "content": user_message}]}
+                messages_payload = []
+                if memory_context:
+                    messages_payload.append({"role": "system", "content": memory_context})
+                messages_payload.append({"role": "user", "content": user_message})
+                inputs = {"messages": messages_payload}
                 
                 full_response = ""
                 seen_message_ids = set()
+                step_counter = 0
                 
                 try:
                     # Use async streaming to avoid blocking the FastAPI event loop
@@ -194,11 +219,21 @@ async def websocket_chat(
                                     continue
                                 
                                 if msg.type == "tool":
+                                    step_counter += 1
                                     await websocket.send_json({
                                         "type": "tool",
                                         "name": msg.name or "Unknown",
                                         "content": str(msg.content)
                                     })
+                                    await procedural_memory.log_step(
+                                        user_id=str(user.id),
+                                        agent_id="subagent",
+                                        task_id=str(conv_id),
+                                        step=step_counter,
+                                        input_text=user_message,
+                                        output_text=str(msg.content),
+                                        tools_used={"tool_name": msg.name},
+                                    )
                                 elif msg.type == "ai":
                                     if getattr(msg, "tool_calls", None):
                                         for tool_call in msg.tool_calls:
@@ -248,6 +283,14 @@ async def websocket_chat(
                 )
                 session.add(assistant_msg)
                 await session.commit()
+
+                await semantic_memory.remember(
+                    [user_message, full_response],
+                    user_id=user.id,
+                    agent_id="supervisor",
+                    conversation_id=conv_id,
+                    metadatas=[{"role": "user"}, {"role": "assistant"}],
+                )
                 
                 # Generate title if conversation has enough messages and title is still default
                 try:
@@ -319,12 +362,28 @@ async def chat(
     db.add(user_msg)
     await db.commit()
     
+    semantic_memory = SemanticMemory(db)
+    semantic_context = ""
+    semantic_hits = await semantic_memory.retrieve(
+        request.message,
+        user_id=user.id,
+        agent_id="supervisor",
+        conversation_id=conv_id,
+        top_k=settings.MEMORY_TOP_K,
+    )
+    if semantic_hits:
+        semantic_context = "Relevant prior context:\n" + "\n".join([f"- {hit.text}" for hit in semantic_hits])
+
     # Log user message
     logger.info(f"User ({conv_id}): {request.message}")
     
     # Get response from supervisor
     config = {"configurable": {"thread_id": str(conv_id)}}
-    inputs = {"messages": [{"role": "user", "content": request.message}]}
+    messages_payload = []
+    if semantic_context:
+        messages_payload.append({"role": "system", "content": semantic_context})
+    messages_payload.append({"role": "user", "content": request.message})
+    inputs = {"messages": messages_payload}
     
     # Use async invocation to better integrate with FastAPI's async model
     result = await supervisor_service.supervisor_agent.ainvoke(inputs, config)
@@ -376,6 +435,14 @@ async def chat(
     )
     db.add(assistant_msg)
     await db.commit()
+
+    await semantic_memory.remember(
+        [request.message, final_message],
+        user_id=user.id,
+        agent_id="supervisor",
+        conversation_id=conv_id,
+        metadatas=[{"role": "user"}, {"role": "assistant"}],
+    )
     
     # Generate title if conversation has enough messages and title is still default
     try:

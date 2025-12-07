@@ -1,8 +1,9 @@
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey, Integer, Boolean
+from sqlalchemy import Column, String, DateTime, Text, ForeignKey, Integer, Boolean, JSON, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
+from pgvector.sqlalchemy import Vector
 from app.db.session import Base
 from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTableUUID
 
@@ -49,4 +50,52 @@ class Message(Base):
     
     # Relationships
     conversation = relationship("Conversation", back_populates="messages")
+
+
+class SemanticMemoryEntry(Base):
+    """Semantic memory items stored for supervisor retrieval."""
+    __tablename__ = "semantic_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    agent_id = Column(String, index=True, nullable=True)
+    conversation_id = Column(UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True)
+    text = Column(Text, nullable=False)
+    meta = Column(JSON, nullable=True)
+    embedding = Column(Vector(1024), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index(
+            "ix_semantic_items_embedding",
+            "embedding",
+            postgresql_using="ivfflat",
+            postgresql_with={"lists": 100},
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+        Index("ix_semantic_items_agent_created", "agent_id", "created_at"),
+        Index("ix_semantic_items_user_created", "user_id", "created_at"),
+    )
+
+
+class ProceduralTrace(Base):
+    """Procedural memory for sub-agents (steps and tool usage)."""
+    __tablename__ = "procedural_traces"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    agent_id = Column(String, index=True, nullable=True)
+    task_id = Column(String, index=True, nullable=True)
+    step = Column(Integer, nullable=True)
+    input = Column(Text, nullable=True)
+    output = Column(Text, nullable=True)
+    tools_used = Column(JSON, nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("ix_procedural_traces_agent_created", "agent_id", "created_at"),
+        Index("ix_procedural_traces_task", "task_id"),
+        Index("ix_procedural_traces_user_created", "user_id", "created_at"),
+    )
 

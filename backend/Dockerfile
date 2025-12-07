@@ -47,7 +47,9 @@ RUN uv pip install --system \
     langchain-openai \
     langchain-mcp-adapters \
     langgraph-supervisor \
-    requests
+    requests \
+    httpx \
+    pgvector
 
 # Copy application code
 COPY . .

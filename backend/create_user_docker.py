@@ -1,10 +1,18 @@
+import os
 import asyncio
 import contextlib
+from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
+from fastapi_users import schemas
+
+# Ensure DATABASE_URL is set when running outside containers (fallback to localhost)
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+asyncpg://misterios:misteriospassword@localhost:5432/postgres",
+)
+
 from app.db.session import AsyncSessionLocal
 from app.db.models import User
 from app.core.security import UserManager
-from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
-from fastapi_users import schemas
 
 class UserCreate(schemas.BaseUserCreate):
     pass

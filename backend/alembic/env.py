@@ -3,7 +3,7 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
 from app.db.session import Base
-from app.db.models import User, Conversation, Message
+from app.db.models import Conversation, Message, ProceduralTrace, SemanticMemoryEntry, User
 from app.core.config import settings
 
 # this is the Alembic Config object, which provides
