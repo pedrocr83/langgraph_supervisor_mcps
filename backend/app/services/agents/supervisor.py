@@ -23,9 +23,24 @@ def categorize_tools(tools: List[BaseTool]) -> dict:
     
     for tool in tools:
         tool_lower = tool.name.lower()
+        tool_desc_lower = tool.description.lower() if tool.description else ""
+        combined_lower = f"{tool_lower} {tool_desc_lower}"
+        
         if any(kw in tool_lower for kw in ["postgres", "postgresql", "db_", "sql", "query", "table", "schema", "mcp-db", "mcp_db"]):
             categories["database"].append(tool)
-        elif any(kw in tool_lower for kw in ["sharepoint", "onedrive", "filesystem", "file_", "directory", "list_directory", "search_files", "read_document", "read_documents"]):
+        elif any(kw in tool_lower for kw in [
+            # Web-related markdownify tools - for supervisor/web agent
+            "youtube-to-markdown", "webpage-to-markdown", "bing-search-to-markdown"
+        ]):
+            categories["web"].append(tool)
+        elif any(kw in combined_lower for kw in [
+            "sharepoint", "onedrive", "filesystem", "file_", "directory", 
+            "list_directory", "search_files", "read_document", "read_documents",
+            # Markdownify tools - document conversion tools for SharePoint agent
+            "markdownify", "markdown", "to-markdown", "get-markdown",
+            "pdf-to-markdown", "docx-to-markdown", "xlsx-to-markdown", 
+            "pptx-to-markdown", "image-to-markdown", "audio-to-markdown"
+        ]):
             categories["sharepoint"].append(tool)
         else:
             categories["web"].append(tool)
@@ -205,14 +220,25 @@ RESPONSIBILITIES:
 - Provide file metadata (size, type, modification dates)
 - Summarize file contents when requested
 - Help locate specific files or documents
+- Convert various file types to Markdown format for easier reading and analysis
+
+DOCUMENT CONVERSION CAPABILITIES:
+You have access to Markdownify tools that can convert various file types to Markdown:
+- **PDF files**: Use `pdf-to-markdown` to convert PDF documents to readable Markdown
+- **Office documents**: Use `docx-to-markdown`, `xlsx-to-markdown`, `pptx-to-markdown` for Word, Excel, and PowerPoint files
+- **Media files**: Use `image-to-markdown` (with OCR) and `audio-to-markdown` (with transcription) for images and audio files
+- **Existing Markdown**: Use `get-markdown-file` to retrieve Markdown files directly
+- When users ask about file contents, consider converting to Markdown first for better readability and analysis
+- **Note**: Web-related conversion tools (YouTube, web pages, Bing search) are handled by the supervisor/web agent, not by you
 
 TOOL USAGE GUIDELINES:
 1. **YOU MUST USE TOOLS** - When asked about files or folders, you MUST call the appropriate file tools. DO NOT respond with text without calling tools.
 2. **Reading Files**: Use `read_*` or `read_text_file` tools to read file contents
-3. **Exploring Directories**: Use `list_directory` or `list_directory_with_sizes` to explore folder structures
-4. **Searching Files**: Use `search_files` to locate files by name pattern
-5. **File Information**: Use `get_file_info` to retrieve metadata
-6. **DO NOT USE**: `write_file`, `create_file`, `edit_file`, `move_file`, `delete_file` - Write operations are not allowed
+3. **Converting Documents**: For PDFs, Office documents, images, or audio files, use the appropriate `*-to-markdown` tool to convert them to readable Markdown format
+4. **Exploring Directories**: Use `list_directory` or `list_directory_with_sizes` to explore folder structures
+5. **Searching Files**: Use `search_files` to locate files by name pattern
+6. **File Information**: Use `get_file_info` to retrieve metadata
+7. **DO NOT USE**: `write_file`, `create_file`, `edit_file`, `move_file`, `delete_file` - Write operations are not allowed
 
 WORKFLOW:
 1. **Understand the request** - Determine what file information is needed
